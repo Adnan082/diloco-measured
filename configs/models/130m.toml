@@ -1,0 +1,23 @@
+# Model config: ~130M params. Used for convergence runs (Phase 4) — small enough to permit
+# ~13 overnight runs (CLAUDE.md ADR-011). STATUS: [PROPOSED] — architecture numbers below are
+# placeholders; must be validated against torchtitan's actual Llama-3-style config on Day 0
+# (ADR-009 is still Proposed, not Accepted).
+
+[model]
+name = "diloco-130m"
+approx_params = 130_000_000
+architecture = "llama3-style"  # [PROPOSED] — via torchtitan, pending ADR-009 validation
+
+[model.dims]
+dim = 768            # [UNKNOWN]
+n_layers = 12         # [UNKNOWN]
+n_heads = 12          # [UNKNOWN]
+vocab_size = 32000    # [UNKNOWN] — depends on tokenizer choice (Day 0)
+
+[train]
+seq_len = 1024         # [PROPOSED]
+micro_batch_size = 8   # [UNKNOWN] — must be validated against 45GiB L40S VRAM on Day 1
+grad_accum = 1          # [PROPOSED]
+
+[budget]
+convergence_tokens = 400_000_000  # [PROPOSED] — CLAUDE.md §1.2 / TD-6

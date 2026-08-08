@@ -1,0 +1,11 @@
+# Algorithm config: DDP (baseline). H is fixed at 1 by definition — CLAUDE.md ExperimentSpec
+# invariant "H == 1 iff algorithm == ddp". STATUS: [CONFIRMED] form, [PROPOSED] hyperparams.
+
+algorithm: ddp
+implementation: reference   # DDP needs no torchft/reference distinction; kept for schema uniformity
+H: 1
+compression: null            # invalid to set compression with DDP (schema invariant)
+
+optimizer:
+  name: adamw                # [PROPOSED]
+  lr: null                    # [UNKNOWN] — tune on Day 0 smoke config

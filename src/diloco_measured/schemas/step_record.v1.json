@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diloco-measured/schemas/step_record.v1.json",
+  "title": "StepRecord",
+  "description": "One row per training step, written to Parquet (not JSON) per run. This schema documents the column contract. See CLAUDE.md §26.3. STATUS: [PROPOSED] scaffold.",
+  "type": "object",
+  "properties": {
+    "run_id": { "type": "string" },
+    "rank": { "type": "integer" },
+    "step": { "type": "integer" },
+    "is_sync_step": { "type": "boolean", "description": "Whether this step performed the outer all-reduce" },
+    "current_H": { "type": "integer" },
+    "wall_time_ms": { "type": "number" },
+    "compute_time_ms": { "type": "number" },
+    "sync_blocked_ms": { "type": "number" },
+    "optimizer_time_ms": { "type": "number" },
+    "loader_stall_ms": { "type": "number" },
+    "loss": { "type": "number" },
+    "tokens_processed": { "type": "integer" },
+    "peak_memory_bytes": { "type": "integer" }
+  },
+  "required": [
+    "run_id", "rank", "step", "is_sync_step", "current_H", "wall_time_ms",
+    "compute_time_ms", "sync_blocked_ms", "optimizer_time_ms", "loader_stall_ms",
+    "loss", "tokens_processed", "peak_memory_bytes"
+  ],
+  "additionalProperties": false
+}

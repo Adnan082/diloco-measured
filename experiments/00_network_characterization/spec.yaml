@@ -1,0 +1,16 @@
+# ExperimentSpec-adjacent config for FR-01 network characterization. Not itself an
+# ExperimentSpec (characterization has no algorithm/H/model) — this is the levels + timing
+# config consumed by `diloco-measured network characterize`.
+# STATUS: [PROPOSED] scaffold.
+
+levels:
+  - configs/bandwidths/unshaped.yaml
+  - configs/bandwidths/5g.yaml
+  - configs/bandwidths/1g.yaml
+  - configs/bandwidths/200m.yaml
+  - configs/bandwidths/50m.yaml
+
+iperf3_duration_s: 60          # FR-01 step 2
+nccl_probe_msg_sizes: [1MiB, 4GiB]   # log-spaced between these, FR-01 step 3 — [PROPOSED] step count
+burst_decay_duration_s: 600    # FR-01 step 5
+burst_decay_threshold_pct: 20   # FR-01 alt-flow 5a

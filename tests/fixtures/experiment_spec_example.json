@@ -1,0 +1,20 @@
+{
+  "spec_id": "example-cu_grid-diloco-1b-h32-bw1g-r0",
+  "phase": "cu_grid",
+  "algorithm": "diloco",
+  "implementation": "reference",
+  "H": 32,
+  "model_config": "configs/models/1b.toml",
+  "bandwidth_requested_bps": 1000000000,
+  "world_size": 4,
+  "micro_batch_size": 2,
+  "seq_len": 1024,
+  "grad_accum": 4,
+  "budget_type": "steps",
+  "budget_value": 200,
+  "warmup_steps": 20,
+  "compression": null,
+  "seed": 0,
+  "repeat_index": 0,
+  "fault_schedule": null
+}

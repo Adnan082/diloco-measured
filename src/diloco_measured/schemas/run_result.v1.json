@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diloco-measured/schemas/run_result.v1.json",
+  "title": "RunResult",
+  "description": "One execution and its aggregated outcome. Self-contained: embeds its full spec and fingerprint rather than referencing them (CLAUDE.md §16.1). STATUS: [PROPOSED] scaffold.",
+  "type": "object",
+  "properties": {
+    "run_id": { "type": "string", "description": "{phase}-{algorithm}-{model}-h{H}-bw{rate}-r{repeat}-{shortsha}" },
+    "spec": { "$ref": "experiment_spec.v1.json" },
+    "fingerprint": { "$ref": "#/$defs/EnvironmentFingerprint" },
+    "shaping": {
+      "oneOf": [
+        { "$ref": "#/$defs/ShapingVerification" },
+        { "type": "null" }
+      ],
+      "description": "null only when unshaped"
+    },
+    "network_profile_id": { "type": "string" },
+    "harness_version": { "type": "string", "description": "Critical for cross-version pooling rules — CLAUDE.md §16.3" },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "crashed", "diverged", "aborted_shaping", "aborted_preconditions", "invalid_spec", "oom"]
+    },
+    "started_at": { "type": "string", "format": "date-time" },
+    "ended_at": { "type": "string", "format": "date-time" },
+    "cu": { "$ref": "#/$defs/CUObservation" },
+    "wire": { "$ref": "#/$defs/WireAccount" },
+    "throughput": { "$ref": "#/$defs/ThroughputSummary" },
+    "convergence": {
+      "oneOf": [
+        { "$ref": "#/$defs/ConvergenceCurve" },
+        { "type": "null" }
+      ]
+    },
+    "faults": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/FaultEvent" }
+    },
+    "loader_bound_warning": { "type": "boolean" },
+    "notes": { "type": "string" }
+  },
+  "required": [
+    "run_id", "spec", "fingerprint", "network_profile_id", "harness_version",
+    "status", "started_at", "ended_at", "loader_bound_warning"
+  ],
+  "additionalProperties": false,
+
+  "$comment": "Invariant (CLAUDE.md §15.2): only status == completed runs may enter analysis aggregations. All other statuses are recorded and reported in RESULTS.md but excluded from figures.",
+
+  "$defs": {
+    "EnvironmentFingerprint": {
+      "type": "object",
+      "description": "FR-08. A result cannot be written without this being complete.",
+      "properties": {
+        "harness_git_sha": { "type": "string" },
+        "harness_dirty": { "type": "boolean" },
+        "harness_version": { "type": "string" },
+        "pytorch_version": { "type": "string" },
+        "torchtitan_version": { "type": "string" },
+        "torchft_version": { "type": "string" },
+        "nccl_version": { "type": "string" },
+        "cuda_version": { "type": "string" },
+        "driver_version": { "type": "string" },
+        "instance_types": { "type": "array", "items": { "type": "string" } },
+        "az": { "type": "string" },
+        "placement_group_id": { "type": "string" },
+        "nvidia_smi_topo": { "type": "string" },
+        "gpu_clocks_locked": { "type": "boolean" },
+        "nccl_env": { "type": "object" },
+        "kernel_version": { "type": "string" },
+        "qdisc_dump": { "type": "string" },
+        "dataset_shard_checksum": { "type": "string" },
+        "seed": { "type": "integer" }
+      },
+      "required": [
+        "harness_git_sha", "harness_dirty", "harness_version", "pytorch_version",
+        "nccl_version", "cuda_version", "driver_version", "instance_types", "az",
+        "gpu_clocks_locked", "kernel_version", "dataset_shard_checksum", "seed"
+      ],
+      "additionalProperties": true,
+      "$comment": "Fields must exclude account IDs, private IPs, ARNs, key names, bucket names (CLAUDE.md §23 scrubber requirement) before this record is ever committed."
+    },
+
+    "ShapingVerification": {
+      "type": "object",
+      "description": "Proof the requested bandwidth was achieved (FR-02). passed == false ⇒ no RunResult may exist for this run.",
+      "properties": {
+        "requested_bps": { "type": "integer" },
+        "measured_bps": { "type": "number" },
+        "error_pct": { "type": "number" },
+        "tolerance_pct": { "type": "number" },
+        "passed": { "type": "boolean" },
+        "attempts": { "type": "integer", "minimum": 1 },
+        "iperf_raw": { "type": "string" },
+        "qdisc_dump": { "type": "string" }
+      },
+      "required": ["requested_bps", "measured_bps", "error_pct", "tolerance_pct", "passed", "attempts"]
+    },
+
+    "CUObservation": {
+      "type": "object",
+      "properties": {
+        "cu_measured": { "type": "number" },
+        "cu_analytic_link": { "type": "number" },
+        "cu_analytic_achieved": { "type": ["number", "null"] },
+        "nccl_bw_used_bps": { "type": ["integer", "null"] },
+        "nccl_bw_interpolated": { "type": "boolean" },
+        "discrepancy_link": { "type": "number" },
+        "discrepancy_achieved": { "type": ["number", "null"] },
+        "compute_s": { "type": "number" },
+        "sync_blocked_s": { "type": "number" },
+        "optimizer_s": { "type": "number" },
+        "loader_stall_s": { "type": "number" },
+        "total_s": { "type": "number" }
+      },
+      "required": [
+        "cu_measured", "cu_analytic_link", "nccl_bw_interpolated",
+        "discrepancy_link", "compute_s", "sync_blocked_s", "optimizer_s",
+        "loader_stall_s", "total_s"
+      ],
+      "$comment": "Component times must reconcile to total_s within a recorded residual — see methods/cu_model.md §5. Field names carry provenance per Architecture Principle #7: never a bare 'cu'."
+    },
+
+    "WireAccount": {
+      "type": "object",
+      "properties": {
+        "predicted_bytes": { "type": "integer" },
+        "measured_bytes": { "type": "integer" },
+        "overhead_ratio": { "type": "number" },
+        "bytes_per_training_token_predicted": { "type": "number" },
+        "bytes_per_training_token_measured": { "type": "number" },
+        "idle_baseline_bytes": { "type": "integer" }
+      },
+      "required": [
+        "predicted_bytes", "measured_bytes", "overhead_ratio",
+        "bytes_per_training_token_predicted", "bytes_per_training_token_measured",
+        "idle_baseline_bytes"
+      ]
+    },
+
+    "ThroughputSummary": {
+      "type": "object",
+      "properties": {
+        "tokens_per_s": { "type": "number" },
+        "mfu": { "type": "number" },
+        "step_time_p50_ms": { "type": "number" },
+        "step_time_p90_ms": { "type": "number" },
+        "step_time_p99_ms": { "type": "number" },
+        "peak_memory_bytes": { "type": "integer" }
+      }
+    },
+
+    "ConvergenceCurve": {
+      "type": "object",
+      "properties": {
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tokens": { "type": "integer" },
+              "wall_s": { "type": "number" },
+              "train_loss": { "type": "number" },
+              "val_loss": { "type": ["number", "null"] }
+            },
+            "required": ["tokens", "wall_s", "train_loss"]
+          }
+        },
+        "target_loss": { "type": "number" },
+        "tttl_s": {
+          "type": ["number", "null"],
+          "description": "null when the target was never reached — MUST NOT be rendered as a finite number downstream."
+        },
+        "tttl_smoothed_s": { "type": ["number", "null"] },
+        "final_loss": { "type": "number" },
+        "reached_target": { "type": "boolean" }
+      },
+      "required": ["points", "target_loss", "tttl_s", "final_loss", "reached_target"]
+    },
+
+    "FaultEvent": {
+      "type": "object",
+      "properties": {
+        "injected_at_s": { "type": "number" },
+        "rank": { "type": "integer" },
+        "detected_at_s": { "type": ["number", "null"] },
+        "resumed_at_s": { "type": ["number", "null"] },
+        "steps_lost": { "type": "integer" },
+        "outcome": { "type": "string", "enum": ["recovered", "hung", "job_died"] }
+      },
+      "required": ["injected_at_s", "rank", "steps_lost", "outcome"]
+    }
+  }
+}

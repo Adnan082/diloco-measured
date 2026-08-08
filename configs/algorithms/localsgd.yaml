@@ -1,0 +1,13 @@
+# Algorithm config: LocalSGD — parameter averaging every H steps, no outer optimizer.
+# Serves as the no-outer-optimizer ablation against DiLoCo (CLAUDE.md §43 Glossary).
+# STATUS: [PROPOSED] scaffold.
+
+algorithm: localsgd
+implementation: torchft   # torchft provides this path; no in-repo reference exists for it
+H: 32                      # [PROPOSED] default; swept per configs/grids/phase_a.yaml
+compression: null           # compression only valid with localsgd/diloco per schema — this
+                             # file leaves it null; see diloco_int8.yaml for the compressed variant
+
+optimizer:
+  name: adamw   # [PROPOSED]
+  lr: null       # [UNKNOWN]

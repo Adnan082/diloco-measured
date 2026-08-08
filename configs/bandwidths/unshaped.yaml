@@ -1,0 +1,6 @@
+# Bandwidth level: unshaped (no tc qdisc applied). Baseline against the `g6e.2xlarge` ENA
+# "up to 20 Gigabit" burstable link. STATUS: [CONFIRMED] as a level; achieved rate [UNKNOWN]
+# until measured by FR-01 (results/network/).
+
+bandwidth_requested_bps: null   # null = unshaped, per ExperimentSpec schema
+label: unshaped

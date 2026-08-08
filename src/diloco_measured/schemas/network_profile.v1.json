@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diloco-measured/schemas/network_profile.v1.json",
+  "title": "NetworkProfile",
+  "description": "The measured state of the cluster network. A precondition for every experiment (FR-01). See CLAUDE.md §15.2. STATUS: [PROPOSED] scaffold.",
+  "type": "object",
+  "properties": {
+    "profile_id": { "type": "string" },
+    "captured_at": { "type": "string", "format": "date-time" },
+    "cluster_id": { "type": "string", "description": "Placement group / launch ID" },
+    "iperf_pairs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from_node": { "type": "string" },
+          "to_node": { "type": "string" },
+          "direction": { "type": "string" },
+          "gbit_s": { "type": "number" },
+          "duration_s": { "type": "number" }
+        },
+        "required": ["from_node", "to_node", "direction", "gbit_s", "duration_s"]
+      }
+    },
+    "nccl_curve": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "msg_bytes": { "type": "integer" },
+          "achieved_bps": { "type": "number" }
+        },
+        "required": ["msg_bytes", "achieved_bps"]
+      },
+      "description": "Per shaping level — see methods/network_protocol.md §1."
+    },
+    "shaping_fidelity": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "requested_bps": { "type": "integer" },
+          "measured_bps": { "type": "number" },
+          "error_pct": { "type": "number" }
+        },
+        "required": ["requested_bps", "measured_bps", "error_pct"]
+      }
+    },
+    "burst_decay_detected": { "type": "boolean" },
+    "burst_decay_curve": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "t_s": { "type": "number" },
+          "bps": { "type": "number" }
+        },
+        "required": ["t_s", "bps"]
+      }
+    },
+    "topology": { "type": "string", "description": "nvidia-smi topo -m output" }
+  },
+  "required": [
+    "profile_id", "captured_at", "cluster_id", "iperf_pairs", "nccl_curve",
+    "shaping_fidelity", "burst_decay_detected"
+  ],
+  "additionalProperties": false,
+
+  "$comment": "Invariant (CLAUDE.md §15.2): nccl_curve must be non-empty for every shaping level used by any run referencing this profile. Enforced by the loader, not expressible here."
+}

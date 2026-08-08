@@ -1,0 +1,22 @@
+# Phase D — held-out predictor validation (Day 6, M6, G4). CLAUDE.md §35 Phase 5, FR-07.
+# STATUS: [PROPOSED — secondary goal]. Points here must NOT overlap with the Phase A grid used
+# to fit the PredictorModel (predictor.py::fit) — that overlap would invalidate the held-out
+# claim in FR-07 / US-05.
+
+campaign: phase_d_predictor_validation
+phase: predictor
+model_config: configs/models/1b.toml
+
+algorithms:
+  - configs/algorithms/diloco.yaml
+
+# Deliberately off-grid values relative to phase_a.yaml's H_values / bandwidths, so this is a
+# genuine holdout rather than a re-measurement of a fitted point.
+H_values: [64, 256]        # [PROPOSED] — between phase_a's swept values
+bandwidths:
+  - configs/bandwidths/200m.yaml   # reused level is fine; H is the held-out axis here
+
+repeats: 3   # [PROPOSED]
+
+success_criteria:
+  reports: [predicted_H, measured_H, regret_pct]

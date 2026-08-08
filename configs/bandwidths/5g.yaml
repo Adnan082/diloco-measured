@@ -1,0 +1,5 @@
+# Bandwidth level: 5 Gbit/s requested. Verified rate is NEVER assumed — every run using this
+# level must pass the FR-02 shaping verification gate before proceeding.
+bandwidth_requested_bps: 5_000_000_000
+label: 5g
+tolerance_pct: 10   # [PROPOSED] — CLAUDE.md FR-02 step 3

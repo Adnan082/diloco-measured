@@ -1,0 +1,32 @@
+# Phase B — convergence runs (Days 4-5, M5, G3). CLAUDE.md §35 Phase 4.
+# STATUS: [PROPOSED] scaffold. Reference run must complete FIRST and define target_loss (FR-06,
+# §40 Q5) before any other point in this campaign is meaningful.
+
+campaign: phase_b_convergence
+phase: convergence
+model_config: configs/models/130m.toml   # ADR-011 — small enough for ~13 overnight runs
+
+reference:
+  world_size: 1   # single-GPU reference defining L* (target loss), §40 Q5 option 1
+  algorithm: configs/algorithms/ddp.yaml
+
+algorithms:
+  - configs/algorithms/ddp.yaml
+  - configs/algorithms/diloco.yaml
+  - configs/algorithms/diloco_int8.yaml   # compression ablation, G6
+
+H_values: [1, 32, 128]   # [PROPOSED] subset — full H sweep is Phase A's job, not this one
+
+bandwidths:
+  - configs/bandwidths/1g.yaml
+  - configs/bandwidths/200m.yaml
+  - configs/bandwidths/50m.yaml
+
+repeats: 1   # [PROPOSED] — CLAUDE.md §40 Q6 option 1: 1 seed for convergence (cost)
+
+budget:
+  type: tokens
+  value: 400_000_000   # [PROPOSED] — TD-6
+
+success_criteria:
+  min_completed_runs: 10   # G3

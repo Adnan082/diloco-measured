@@ -1,0 +1,11 @@
+# Algorithm config: FSDP2 (per-parameter DTensor sharding). STATUS: [PROPOSED] scaffold.
+# Communication volume per step is [UNKNOWN] — see methods/wire_model.md §3, must be derived
+# empirically on Day 0/1 before this config's wire predictions can be trusted.
+
+algorithm: fsdp2
+implementation: reference
+H: 1
+compression: null
+
+sharding:
+  strategy: full_shard   # [PROPOSED] — torchtitan default, revisit if VRAM-bound

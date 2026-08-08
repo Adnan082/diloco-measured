@@ -1,0 +1,18 @@
+# Algorithm config: DiLoCo — inner AdamW / outer Nesterov SGD. See methods/diloco.md for the
+# full derivation. STATUS: [CONFIRMED] algorithm form, [PROPOSED] hyperparameters (pending
+# Day 0/1 validation, methods/diloco.md §4).
+
+algorithm: diloco
+implementation: torchft   # cross-validated against `reference` (ADR-003); set to `reference`
+                           # to run the in-repo implementation instead
+H: 32                      # [PROPOSED] default; swept over {1, 8, 32, 128, 512} per CLAUDE.md §1.2
+compression: null
+
+inner_optimizer:
+  name: adamw
+  lr: null   # [UNKNOWN] — methods/diloco.md §4
+
+outer_optimizer:
+  name: nesterov_sgd
+  lr: null         # [UNKNOWN]
+  momentum: null    # [UNKNOWN]

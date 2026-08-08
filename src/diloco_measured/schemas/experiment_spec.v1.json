@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diloco-measured/schemas/experiment_spec.v1.json",
+  "title": "ExperimentSpec",
+  "description": "The complete, declarative description of a run. The only input to the measurement path. See CLAUDE.md §15.2. STATUS: [PROPOSED] scaffold — not yet validated against a real spec file.",
+  "type": "object",
+  "properties": {
+    "spec_id": { "type": "string" },
+    "phase": {
+      "type": "string",
+      "enum": ["network", "cu_grid", "convergence", "compression", "faults", "predictor"]
+    },
+    "algorithm": {
+      "type": "string",
+      "enum": ["ddp", "fsdp2", "localsgd", "diloco"]
+    },
+    "implementation": {
+      "type": "string",
+      "enum": ["torchft", "reference"],
+      "description": "Which DiLoCo code path (ADR-003 cross-validation)."
+    },
+    "H": { "type": "integer", "minimum": 1 },
+    "model_config": { "type": "string", "description": "Reference to configs/models/*" },
+    "bandwidth_requested_bps": {
+      "type": ["integer", "null"],
+      "description": "null = unshaped"
+    },
+    "world_size": { "type": "integer", "const": 4 },
+    "micro_batch_size": { "type": "integer", "minimum": 1 },
+    "seq_len": { "type": "integer", "minimum": 1 },
+    "grad_accum": { "type": "integer", "minimum": 1 },
+    "budget_type": { "type": "string", "enum": ["steps", "tokens"] },
+    "budget_value": { "type": "integer", "minimum": 1 },
+    "warmup_steps": { "type": "integer", "minimum": 0 },
+    "compression": {
+      "type": ["string", "null"],
+      "enum": ["fp16", "int8_ef", "topk", null]
+    },
+    "seed": { "type": "integer" },
+    "repeat_index": { "type": "integer", "minimum": 0 },
+    "fault_schedule": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "rank": { "type": "integer" },
+          "t_s": { "type": "number" }
+        },
+        "required": ["rank", "t_s"]
+      }
+    }
+  },
+  "required": [
+    "spec_id", "phase", "algorithm", "implementation", "H", "model_config",
+    "world_size", "micro_batch_size", "seq_len", "grad_accum",
+    "budget_type", "budget_value", "warmup_steps", "seed", "repeat_index"
+  ],
+  "additionalProperties": false,
+
+  "$comment": "Cross-field invariants enforced in code, not expressible in plain JSON Schema (CLAUDE.md §15.2): H == 1 iff algorithm == ddp; compression only valid with localsgd/diloco; budget_type == tokens required for the convergence phase."
+}

@@ -1,0 +1,6 @@
+# Lowest bandwidth level. NCCL collective timeout (methods/network_protocol.md §5) must be
+# computed from model size at this rate, not guessed — this is the level most likely to
+# expose a miscalibrated timeout.
+bandwidth_requested_bps: 50_000_000
+label: 50m
+tolerance_pct: 10   # [PROPOSED]

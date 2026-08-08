@@ -1,0 +1,21 @@
+# Model config: ~500M params. "Scale check" — tests the direction of H-scaling over one
+# decade from 130M (CLAUDE.md ADR-011). STATUS: [PROPOSED] scaffold, [UNKNOWN] dims.
+
+[model]
+name = "diloco-500m"
+approx_params = 500_000_000
+architecture = "llama3-style"  # [PROPOSED], pending ADR-009
+
+[model.dims]
+dim = 1536             # [UNKNOWN]
+n_layers = 18           # [UNKNOWN]
+n_heads = 16            # [UNKNOWN]
+vocab_size = 32000      # [UNKNOWN]
+
+[train]
+seq_len = 1024
+micro_batch_size = 4    # [UNKNOWN] — must be validated against VRAM on Day 1
+grad_accum = 2           # [PROPOSED]
+
+[budget]
+convergence_tokens = 400_000_000  # [PROPOSED]

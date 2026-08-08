@@ -1,0 +1,22 @@
+# Phase C — fault injection (Day 6, M6, G7). CLAUDE.md §35 Phase 5, FR-09.
+# STATUS: [PROPOSED — secondary goal]. For DDP, a hang is the expected outcome (FR-09 failure
+# condition) — it must be recorded as such, not treated as a test failure.
+
+campaign: phase_c_faults
+phase: faults
+model_config: configs/models/130m.toml
+
+algorithms:
+  - configs/algorithms/ddp.yaml       # baseline — expect recovery: hung
+  - configs/algorithms/diloco.yaml
+
+H_values: [32, 512]   # US-08 acceptance criteria example
+
+fault_schedule:
+  kill_rank: 3
+  kill_at_s: 600   # 10 minutes in, per US-08
+
+bandwidths:
+  - configs/bandwidths/1g.yaml
+
+repeats: 1   # [PROPOSED]

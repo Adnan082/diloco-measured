@@ -1,0 +1,22 @@
+# Algorithm config: DiLoCo + int8-with-error-feedback pseudo-gradient compression (FR-10, G6).
+# STATUS: [PROPOSED — secondary goal]. Do not run before compress.py's error-feedback residual
+# invariant (methods/diloco.md §3 invariant 4) has a passing unit test.
+
+algorithm: diloco
+implementation: reference   # compression is implemented in our reference path first (FR-10)
+H: 32                        # [PROPOSED] default
+compression: int8_ef
+
+inner_optimizer:
+  name: adamw
+  lr: null
+
+outer_optimizer:
+  name: nesterov_sgd
+  lr: null
+  momentum: null
+
+compression_cfg:
+  error_feedback: true
+  # residual accumulator persists across outer steps and is checkpointed —
+  # see measurement/compress.py::Int8ErrorFeedbackCodec

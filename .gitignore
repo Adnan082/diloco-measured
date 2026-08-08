@@ -1,0 +1,36 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# --- Generated / derived (NEVER results/raw, results/network, results/environment) ---
+results/figures/*
+!results/figures/.gitkeep
+index.sqlite
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Secrets (defense in depth — see CLAUDE.md NFR-07, §23) ---
+.env
+*.pem
+*.key
+credentials.json
+aws_credentials*
+
+# NOTE: results/raw/, results/steps/, results/network/, results/environment/ are
+# intentionally NOT ignored. They are append-only and committed on purpose
+# (CLAUDE.md §16, ADR-004). Do not add them here.

@@ -1,0 +1,33 @@
+# Phase A — the CU grid (Day 3, M4, THE headline result). CLAUDE.md §35 Phase 3, G1/G2.
+# STATUS: [PROPOSED] scaffold. Point count and repeat count are provisional pending §40 Q6.
+
+campaign: phase_a_cu_grid
+phase: cu_grid
+model_config: configs/models/1b.toml   # matches the reference L40S setup, ADR-011
+
+algorithms:
+  - configs/algorithms/ddp.yaml
+  - configs/algorithms/fsdp2.yaml
+  - configs/algorithms/localsgd.yaml
+  - configs/algorithms/diloco.yaml
+
+H_values: [1, 8, 32, 128, 512]   # CLAUDE.md §1.2 — H=1 only valid for ddp (schema invariant)
+
+bandwidths:
+  - configs/bandwidths/unshaped.yaml
+  - configs/bandwidths/5g.yaml
+  - configs/bandwidths/1g.yaml
+  - configs/bandwidths/200m.yaml
+  - configs/bandwidths/50m.yaml
+
+repeats: 3   # [PROPOSED] — CLAUDE.md §40 Q6 option 1; add repeats adaptively if IQR is high
+
+budget:
+  type: steps
+  value: null   # [UNKNOWN] — set from configs/models/1b.toml grid_steps_per_point once
+                 # Day 1 throughput is measured (target: <=5 min/point, NFR-06)
+
+success_criteria:
+  min_bandwidth_levels: 4   # G1
+  min_h_values: 4            # G1
+  min_repeats: 3              # G1
