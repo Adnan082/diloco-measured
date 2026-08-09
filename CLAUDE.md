@@ -2522,6 +2522,15 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Also in this change:** `methods/cu_model.md` updated to `[CONFIRMED]` on the form (§2) with every assumption enumerated (§3), including the previously-`[UNKNOWN]` question of what `t_compute_s` means under rank heterogeneity (flagged as the most likely source of a future "the model's input is wrong, not the model" finding). `analysis/cu.py::analytic()` implemented and unit-tested (known-value cases, H=1 DDP-reduction check, monotonicity in `H` and in bandwidth, boundary/error handling). `analysis/cu.py::measured()` was implemented in the same session but is unrelated to Q3 — it's pure StepRecord arithmetic with no model-form dependency.
 
 ---
+**ADR-016 — Synthetic `RunResult` fixture corpus, generated from factories, not hand-written**
+**Status:** Accepted · **Date:** 2026-08-09
+**Context:** CLAUDE.md §30.6 calls for "a fixture corpus of ~20 synthetic RunResult records covering every status, used by all analysis tests" — this didn't exist yet, so `analysis/filter.py` and `analysis/aggregate.py` had only ever been exercised against small inline dicts per-test, never together as a pipeline.
+**Decision:** `tests/fixtures/factories.py` (schema-shape builder functions) + `tests/fixtures/generate_run_result_corpus.py` (a one-off, manually-rerun script, NOT executed at test time) produce 25 committed JSON files under `tests/fixtures/run_results/`, covering every `RunResult` status reachable in practice (`completed`, `crashed`, `diverged`, `aborted_shaping`, `oom` — `invalid_spec`/`aborted_preconditions` are correctly absent, since neither ever produces a `RunResult` per the §15.2 state machine), plus three `completed`-but-must-be-excluded cases (loader-bound, version-mismatched, reconciliation-failed) and the convergence/compression/fault-injection branches.
+**Bug found while building this:** `experiment_spec.v1.json`'s `world_size` was `const: 4`, which would have rejected every valid single-GPU reference run FR-06 requires — caught because the reference-run fixture failed schema validation the first time the corpus was generated. Fixed to `minimum: 1`. This is exactly the value of building the fixture corpus now rather than waiting for real Phase 1 data to hit it.
+**Reason for "generated, not hand-written":** 25 files × ~30 schema fields each would drift from the schema the moment either changes if maintained by hand; the factory is the single source of truth, and the JSON files are still committed static data (ADR-004) — the script is rerun and the diff re-committed deliberately, not regenerated silently in CI.
+**Verification:** `tests/integration_cpu/test_aggregation_pipeline.py` — 8 tests running `load_run_results()` → `filter.apply()` → `aggregate_repeats()` against the real corpus, with exact expected exclusion counts per category (not just "some were excluded").
+
+---
 
 # 42. Future Extension Strategy
 

@@ -1,0 +1,48 @@
+{
+  "ended_at": "2026-08-09T00:05:00Z",
+  "faults": [],
+  "fingerprint": {
+    "az": "us-east-1a",
+    "cuda_version": "12.4",
+    "dataset_shard_checksum": "deadbeef",
+    "driver_version": "550.0",
+    "gpu_clocks_locked": true,
+    "harness_dirty": false,
+    "harness_git_sha": "abc123",
+    "harness_version": "v1",
+    "instance_types": [
+      "g6e.2xlarge"
+    ],
+    "kernel_version": "6.8.0",
+    "nccl_version": "2.20",
+    "pytorch_version": "2.13",
+    "seed": 0
+  },
+  "harness_version": "v1",
+  "loader_bound_warning": false,
+  "network_profile_id": "np0",
+  "notes": "rank 2 died unexpectedly at step 140 (not injected)",
+  "run_id": "cu_grid-diloco-1b-h32-bw1g-r2",
+  "spec": {
+    "H": 32,
+    "algorithm": "diloco",
+    "bandwidth_requested_bps": 1000000000,
+    "budget_type": "steps",
+    "budget_value": 200,
+    "compression": null,
+    "fault_schedule": null,
+    "grad_accum": 4,
+    "implementation": "reference",
+    "micro_batch_size": 2,
+    "model_config": "configs/models/1b.toml",
+    "phase": "cu_grid",
+    "repeat_index": 0,
+    "seed": 0,
+    "seq_len": 1024,
+    "spec_id": "s0",
+    "warmup_steps": 20,
+    "world_size": 4
+  },
+  "started_at": "2026-08-09T00:00:00Z",
+  "status": "crashed"
+}

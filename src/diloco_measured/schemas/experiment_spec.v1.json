@@ -25,7 +25,11 @@
       "type": ["integer", "null"],
       "description": "null = unshaped"
     },
-    "world_size": { "type": "integer", "const": 4 },
+    "world_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "4 for the main experimental grid (CLAUDE.md §5.2 hardware topology); 1 for the single-GPU reference run FR-06 requires to define the convergence target loss L*. NOT const:4 — that was a schema bug (fixed 2026-08-09) that would have rejected every valid reference run."
+    },
     "micro_batch_size": { "type": "integer", "minimum": 1 },
     "seq_len": { "type": "integer", "minimum": 1 },
     "grad_accum": { "type": "integer", "minimum": 1 },

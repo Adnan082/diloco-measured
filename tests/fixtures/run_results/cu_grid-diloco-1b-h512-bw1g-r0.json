@@ -1,0 +1,78 @@
+{
+  "cu": {
+    "compute_s": 80.0,
+    "cu_analytic_achieved": 0.88,
+    "cu_analytic_link": 0.9,
+    "cu_measured": 0.85,
+    "discrepancy_achieved": 1.035294117647059,
+    "discrepancy_link": 1.0588235294117647,
+    "loader_stall_s": 2.0,
+    "nccl_bw_interpolated": false,
+    "nccl_bw_used_bps": 900000000,
+    "optimizer_s": 3.0,
+    "sync_blocked_s": 15.0,
+    "total_s": 100.0
+  },
+  "ended_at": "2026-08-09T00:05:00Z",
+  "faults": [],
+  "fingerprint": {
+    "az": "us-east-1a",
+    "cuda_version": "12.4",
+    "dataset_shard_checksum": "deadbeef",
+    "driver_version": "550.0",
+    "gpu_clocks_locked": true,
+    "harness_dirty": false,
+    "harness_git_sha": "abc123",
+    "harness_version": "v1",
+    "instance_types": [
+      "g6e.2xlarge"
+    ],
+    "kernel_version": "6.8.0",
+    "nccl_version": "2.20",
+    "pytorch_version": "2.13",
+    "seed": 0
+  },
+  "harness_version": "v1",
+  "loader_bound_warning": false,
+  "network_profile_id": "np0",
+  "notes": "",
+  "run_id": "cu_grid-diloco-1b-h512-bw1g-r0",
+  "spec": {
+    "H": 512,
+    "algorithm": "diloco",
+    "bandwidth_requested_bps": 1000000000,
+    "budget_type": "steps",
+    "budget_value": 200,
+    "compression": null,
+    "fault_schedule": null,
+    "grad_accum": 4,
+    "implementation": "reference",
+    "micro_batch_size": 2,
+    "model_config": "configs/models/1b.toml",
+    "phase": "cu_grid",
+    "repeat_index": 0,
+    "seed": 0,
+    "seq_len": 1024,
+    "spec_id": "s0",
+    "warmup_steps": 20,
+    "world_size": 4
+  },
+  "started_at": "2026-08-09T00:00:00Z",
+  "status": "completed",
+  "throughput": {
+    "mfu": 0.42,
+    "peak_memory_bytes": 20000000000,
+    "step_time_p50_ms": 120.0,
+    "step_time_p90_ms": 150.0,
+    "step_time_p99_ms": 200.0,
+    "tokens_per_s": 12000.0
+  },
+  "wire": {
+    "bytes_per_training_token_measured": 11.0,
+    "bytes_per_training_token_predicted": 10.0,
+    "idle_baseline_bytes": 0,
+    "measured_bytes": 1100000,
+    "overhead_ratio": 1.1,
+    "predicted_bytes": 1000000
+  }
+}
