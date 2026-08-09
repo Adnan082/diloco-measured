@@ -2539,6 +2539,14 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Verification:** `tests/integration_cpu/test_fig1_cu_surface.py` — 8 tests against the real corpus, including a direct check that every line whose label contains "measured" has `linestyle == "-"` and every other line does not (the §18 invariant, checked as code, not just as a comment).
 
 ---
+**ADR-018 — `fig5_bytes_on_wire.py`: pools across bandwidth levels at fixed H (opposite of fig1's grouping)**
+**Status:** Accepted · **Date:** 2026-08-09
+**Context:** `wire.py::predict()`/`account()` (implemented earlier) had never been exercised end-to-end into a figure. CLAUDE.md §10.2 names this "Bytes-on-wire per token → Fig 5."
+**Decision:** `analysis/figures/fig5_bytes_on_wire.py::build(records, algorithm, harness_version=None)` groups by `H` only, deliberately POOLING every bandwidth level at each `H` — the opposite of fig1_cu_surface's per-bandwidth grouping. This is correct, not an oversight: per methods/wire_model.md §2, bytes-on-wire per training token is `O(N/H)` and does not depend on bandwidth at all (bandwidth affects sync *time*, not the *byte count*), so pooling across bandwidth increases the effective repeat count for the median/IQR at each `H` rather than artificially fragmenting the same underlying quantity into separate series.
+**Verification:** to make this figure's H-trend test meaningful (rather than checking a flat placeholder), the fixture corpus's `wire` fields for the DiLoCo H-sweep records were regenerated using the REAL `wire.py::predict()` formula (`tests/fixtures/generate_run_result_corpus.py::_wire_overrides_for_diloco()`), not hand-set numbers — `test_measured_values_match_wire_predict_times_known_overhead_factor` asserts the plotted values trace back to that exact function, so the two can't silently drift apart. `test_bytes_per_token_decreases_with_h` checks the `O(1/H)` trend directly. `test_measured_is_solid_predicted_is_dashed` re-checks the §18 convention, same pattern as ADR-017.
+**Also in this change:** fixed a schema-adjacent bug the regenerated fixture data exposed immediately — `predicted_bytes`/`measured_bytes` are typed `integer` in `run_result.v1.json`, but the raw formula output is a float; the fixture generator now rounds before writing (this was never hit before because the old placeholder values happened to already be integers).
+
+---
 
 # 42. Future Extension Strategy
 

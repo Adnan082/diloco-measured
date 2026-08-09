@@ -68,11 +68,11 @@
     "tokens_per_s": 12000.0
   },
   "wire": {
-    "bytes_per_training_token_measured": 11.0,
-    "bytes_per_training_token_predicted": 10.0,
+    "bytes_per_training_token_measured": 105285.64453125,
+    "bytes_per_training_token_predicted": 91552.734375,
     "idle_baseline_bytes": 0,
-    "measured_bytes": 1100000,
-    "overhead_ratio": 1.1,
-    "predicted_bytes": 1000000
+    "measured_bytes": 862500000,
+    "overhead_ratio": 1.15,
+    "predicted_bytes": 750000000
   }
 }

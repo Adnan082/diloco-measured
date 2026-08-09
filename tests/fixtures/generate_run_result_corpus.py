@@ -18,11 +18,46 @@ from pathlib import Path
 
 from factories import make_convergence_curve, make_cu_observation, make_fault_event, make_run_result
 
+from diloco_measured.measurement.wire import predict as wire_predict
+
 OUT_DIR = Path(__file__).parent / "run_results"
+
+# Matches configs/models/1b.toml (approx_params) and its [train] section — kept in sync by
+# hand since the fixture generator doesn't parse TOML configs.
+_MODEL_PARAMS = 1_000_000_000
+_DTYPE_BYTES = 4  # fp32
+_WORLD_SIZE = 4
+_TOKENS_PER_RANK_PER_STEP = 2 * 1024 * 4  # micro_batch_size * seq_len * grad_accum
+_MEASURED_OVERHEAD_FACTOR = 1.15  # illustrative TCP/IP + NCCL protocol overhead, fixture-only
 
 
 def _reconciled_cu(**overrides) -> dict:
     return make_cu_observation(**overrides)
+
+
+def _wire_overrides_for_diloco(H: int, noise: float = 1.0) -> dict:
+    """Wire numbers computed from the REAL `measurement/wire.py::predict()` formula, not a
+    flat placeholder — so a figure plotting bytes-per-token vs. H against this corpus shows
+    the actual O(1/H) relationship methods/wire_model.md §2 predicts, and so this fixture data
+    can't silently drift out of sync with the implementation it's meant to exercise.
+    `noise` lets a repeat vary slightly (simulating real measurement variance) without
+    breaking the underlying math.
+    """
+    spec = {"algorithm": "diloco", "world_size": _WORLD_SIZE, "H": H}
+    predicted_bytes_f = wire_predict(spec, model_params=_MODEL_PARAMS, dtype_bytes=_DTYPE_BYTES)
+    measured_bytes_f = predicted_bytes_f * _MEASURED_OVERHEAD_FACTOR * noise
+    # schemas/run_result.v1.json types predicted_bytes/measured_bytes as integer (they're
+    # byte COUNTS); bytes_per_training_token_* stays float (it's a rate/ratio).
+    predicted_bytes = round(predicted_bytes_f)
+    measured_bytes = round(measured_bytes_f)
+    return {
+        "predicted_bytes": predicted_bytes,
+        "measured_bytes": measured_bytes,
+        "overhead_ratio": measured_bytes / predicted_bytes,
+        "bytes_per_training_token_predicted": predicted_bytes / _TOKENS_PER_RANK_PER_STEP,
+        "bytes_per_training_token_measured": measured_bytes / _TOKENS_PER_RANK_PER_STEP,
+        "idle_baseline_bytes": 0,
+    }
 
 
 def build_corpus() -> dict[str, dict]:
@@ -52,6 +87,7 @@ def build_corpus() -> dict[str, dict]:
             spec_overrides={
                 "algorithm": "diloco", "H": H, "bandwidth_requested_bps": 1_000_000_000,
             },
+            wire_overrides=_wire_overrides_for_diloco(H),
         )
     # A second repeat at one grid point, for aggregate.py's repeat-handling tests.
     add(
@@ -61,11 +97,15 @@ def build_corpus() -> dict[str, dict]:
             "repeat_index": 1,
         },
         cu_overrides={"cu_measured": 0.81},
+        wire_overrides=_wire_overrides_for_diloco(32, noise=1.03),
     )
     add(
         "cu_grid-diloco-1b-h32-bw200m-r0",
         spec_overrides={"algorithm": "diloco", "H": 32, "bandwidth_requested_bps": 200_000_000},
         cu_overrides={"cu_measured": 0.55, "cu_analytic_link": 0.70, "cu_analytic_achieved": 0.60},
+        # Bytes-on-wire per token is bandwidth-independent (methods/wire_model.md §2) — same
+        # H=32 formula as the 1g point, with a touch of noise since it's a different run.
+        wire_overrides=_wire_overrides_for_diloco(32, noise=0.97),
     )
 
     # --- LocalSGD and FSDP2 ablations --------------------------------------------------------
