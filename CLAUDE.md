@@ -2350,14 +2350,6 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 
 ---
 
-**Q3 — What exact analytic CU model form do we attribute to the literature?**
-*Why it matters:* the headline comparison is only fair if the model is the one the papers actually use. This is the first objection a serious reviewer raises (§17.2 interview question).
-*Options:* (1) `CU = H·t_compute / (H·t_compute + bytes/B)`; (2) a variant accounting for partial overlap; (3) reproduce the exact form from each paper and compare against all of them.
-*Recommendation:* option 1 as the primary, documented in `methods/cu_model.md` with every assumption listed, plus a sensitivity analysis showing whether the conclusion survives the alternatives.
-*Decision:* **PENDING — blocks M3.**
-
----
-
 **Q4 — Docker on the nodes, or bare metal + lockfile?**
 *Why it matters:* Docker reduces drift (R15) but adds NCCL networking configuration surface (R1), and R1 is the higher-impact risk.
 *Options:* (1) bare metal + `uv` lockfile; (2) NGC PyTorch container with `--network=host`; (3) custom AMI baked on Day 0.
@@ -2519,6 +2511,15 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Decision:** `measurement/telemetry.py::StepTimer` picks a `_CudaEventBackend` when `torch.cuda.is_available()` and a `_PerfCounterBackend` otherwise, behind one phase-marker API (`mark_loader_done()`/`mark_compute_done()`/`mark_sync_done()`/`mark_optimizer_done()`). Reconciliation (`methods/cu_model.md §5`) is deliberately NOT enforced by construction: an unmarked phase boundary collapses to zero duration rather than raising, so a genuine instrumentation gap (e.g. a forgotten `mark_optimizer_done()`) surfaces as real residual on `StepTiming.reconciliation_residual_pct` instead of being silently absorbed.
 **Verification:** the `perf_counter` backend is fully unit-tested (exact reconciliation, unmarked-phase handling, the residual calculation itself). The CUDA-event backend is implemented but **has never run against a real GPU** — it is explicitly marked `[PROPOSED — UNVERIFIED ON REAL HARDWARE]` in its docstring, and `make smoke` (Phase 1, §30.4) is the first real test of it. Do not trust a GPU-backend number before that gate passes.
 **Also in this change:** `measure_instrumentation_overhead()` implemented — runs `step_fn` with and without a `StepTimer` and returns the relative wall-time overhead (target `< 1%`, §27/R8; this function measures the number, it does not assert against the target). It refuses to trust a baseline step faster than 1ms, since Python call overhead alone dominates below that and the ratio becomes meaningless.
+
+---
+**ADR-015 — Analytic CU model form (formerly §40 Q3): Option 1, the non-overlapped blocking-sync form**
+**Status:** Accepted · **Date:** 2026-08-09 · **Decided by:** project owner (explicit choice, not a Claude default)
+**Context:** `analysis/cu.py::analytic()` — FR-04's headline comparison — cannot exist without picking which analytic CU model to attribute to "the literature." Three candidates were on file in `methods/cu_model.md` §2 with no decision (§40 Q3, PENDING). A previous session had written an explicit in-code guardrail into `analytic()` ("must not be implemented against a guessed form... do not fill this in until Q3 is resolved") specifically to prevent implementing this under a self-authored rationalization instead of a real decision — that guardrail held; this ADR records the actual decision once asked for.
+**Decision:** `CU = H · t_compute / (H · t_compute + bytes_synced · 8 / B)` (methods/cu_model.md §2 Option 1) — compute time accumulated over `H` inner steps, divided by that plus the wall time of one non-overlapped, instantaneous-once-initiated blocking synchronization at bandwidth `B`.
+**Reason:** it's the simplest form that captures the mechanism under test (H amortizes a fixed sync cost), matches the functional shape implicit in the papers surveyed in `PRIOR_ART.md` closely enough to serve as "the literature's" baseline, and — critically — is the only one of the three candidates with an actual specified formula; Option 2 (partial overlap) has never had a functional form written down anywhere in this repo, and Option 3 (per-paper reproduction) requires transcribing multiple papers' equations, both real follow-up work rather than a same-session decision.
+**Trade-offs / what's NOT resolved by this ADR:** the §6 sensitivity analysis (re-running the discrepancy factor under Options 2/3 to check whether the headline conclusion survives the choice of model form) is explicitly still owed before publication and needs real Phase 3 grid data — this ADR unblocks implementation, it does not close the "apples to oranges" objection by itself. Option 2's functional form must be derived/sourced and written into `methods/cu_model.md` §2 before it can be implemented; guessing at it would violate §33.2.6.
+**Also in this change:** `methods/cu_model.md` updated to `[CONFIRMED]` on the form (§2) with every assumption enumerated (§3), including the previously-`[UNKNOWN]` question of what `t_compute_s` means under rank heterogeneity (flagged as the most likely source of a future "the model's input is wrong, not the model" finding). `analysis/cu.py::analytic()` implemented and unit-tested (known-value cases, H=1 DDP-reduction check, monotonicity in `H` and in bandwidth, boundary/error handling). `analysis/cu.py::measured()` was implemented in the same session but is unrelated to Q3 — it's pure StepRecord arithmetic with no model-form dependency.
 
 ---
 
