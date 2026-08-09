@@ -2513,6 +2513,14 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Also in this change:** `measurement/spec.py::validate_experiment_spec()` closes a gap this document's own test suite had flagged (a JSON-Schema-only test proving `H == 1 iff algorithm == "ddp"` cannot be expressed in the schema alone) by enforcing that invariant plus the other two documented `ExperimentSpec` cross-field rules (compression only with `localsgd`/`diloco`; `budget_type == "tokens"` required for the `convergence` phase) explicitly. `measurement/fingerprint.py::capture()` was also implemented: best-effort local capture (git SHA/dirty flag, installed package versions, EC2 IMDS when reachable, `nvidia-smi` when present) with an explicit `"unknown"` sentinel — never a silent `None` — for fields the schema requires as non-nullable strings but that aren't determinable off-cluster; `scrub()` (account IDs, ARNs, private IPv4s) is applied unconditionally before `capture()` returns.
 
 ---
+**ADR-014 — `StepTimer` has two backends (CUDA-event, `perf_counter`), auto-selected, same API**
+**Status:** Accepted (perf_counter backend) / **Proposed — unverified on real hardware** (CUDA-event backend) · **Date:** 2026-08-09
+**Context:** CLAUDE.md §13.2 specifies `torch.cuda.Event` for per-step compute/sync decomposition, but no GPU exists in the dev environment to implement or test that backend against real kernels, and Phase 0 must not block on Phase 1 hardware (§31.1).
+**Decision:** `measurement/telemetry.py::StepTimer` picks a `_CudaEventBackend` when `torch.cuda.is_available()` and a `_PerfCounterBackend` otherwise, behind one phase-marker API (`mark_loader_done()`/`mark_compute_done()`/`mark_sync_done()`/`mark_optimizer_done()`). Reconciliation (`methods/cu_model.md §5`) is deliberately NOT enforced by construction: an unmarked phase boundary collapses to zero duration rather than raising, so a genuine instrumentation gap (e.g. a forgotten `mark_optimizer_done()`) surfaces as real residual on `StepTiming.reconciliation_residual_pct` instead of being silently absorbed.
+**Verification:** the `perf_counter` backend is fully unit-tested (exact reconciliation, unmarked-phase handling, the residual calculation itself). The CUDA-event backend is implemented but **has never run against a real GPU** — it is explicitly marked `[PROPOSED — UNVERIFIED ON REAL HARDWARE]` in its docstring, and `make smoke` (Phase 1, §30.4) is the first real test of it. Do not trust a GPU-backend number before that gate passes.
+**Also in this change:** `measure_instrumentation_overhead()` implemented — runs `step_fn` with and without a `StepTimer` and returns the relative wall-time overhead (target `< 1%`, §27/R8; this function measures the number, it does not assert against the target). It refuses to trust a baseline step faster than 1ms, since Python call overhead alone dominates below that and the ratio becomes meaningless.
+
+---
 
 # 42. Future Extension Strategy
 
