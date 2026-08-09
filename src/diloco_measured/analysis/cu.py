@@ -10,9 +10,16 @@ STATUS: [PROPOSED] scaffold — deliberately unimplemented pending Q3.
 
 from __future__ import annotations
 
+from typing import Any
 
-def measured(steps: "StepRecords", warmup: int) -> float:  # noqa: F821 — StepRecords TBD (pandas/polars frame)
-    """CU_measured = sum(compute_time) / sum(total_step_time), over steps after `warmup`."""
+
+def measured(steps: Any, warmup: int) -> float:
+    """CU_measured = sum(compute_time) / sum(total_step_time), over steps after `warmup`.
+
+    `steps` type is intentionally `Any` for now: the concrete container (pandas vs. polars
+    DataFrame over StepRecord rows) is [PROPOSED], not decided (CLAUDE.md §13.3) — pinning a
+    narrower type here would be guessing.
+    """
     raise NotImplementedError("Phase 0 — see methods/cu_model.md §1")
 
 

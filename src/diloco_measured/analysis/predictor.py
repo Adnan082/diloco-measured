@@ -29,12 +29,28 @@ class Recommendation:
     calibration_domain: CalibrationDomain
 
 
-def fit(run_results: list[dict]) -> "PredictorModel":  # noqa: F821 — defined once implemented
-    """Fit a predictor mapping (measured bandwidth, model size, local step time) -> recommended H."""
+@dataclass(frozen=True)
+class PredictorModel:
+    """See CLAUDE.md §15.2 `PredictorModel` entity. Field shape is [CONFIRMED] (it's already
+    specified there); the fitting procedure that populates it is [PROPOSED], blocked on
+    Phase A/B data (`fit()` below).
+    """
+
+    model_id: str
+    fitted_at: str
+    training_run_ids: list[str]
+    form: str
+    params: dict
+    calibration_domain: CalibrationDomain
+    holdout_validation: dict | None = None
+
+
+def fit(run_results: list[dict]) -> PredictorModel:
+    """Fit a predictor mapping (measured bandwidth, model size, local step time) to H."""
     raise NotImplementedError("Phase 5 — requires Phase A + B corpora")
 
 
-def recommend(model, bandwidth_bps: float, model_config: str) -> Recommendation:
+def recommend(model: PredictorModel, bandwidth_bps: float, model_config: str) -> Recommendation:
     """Evaluate the fitted model over candidate H values and recommend one.
 
     CONTRACT: if `bandwidth_bps` or `model_config` falls outside `model.calibration_domain`,
@@ -44,7 +60,7 @@ def recommend(model, bandwidth_bps: float, model_config: str) -> Recommendation:
     raise NotImplementedError("Phase 5")
 
 
-def validate_holdout(model, holdout_run_results: list[dict]) -> dict:
+def validate_holdout(model: PredictorModel, holdout_run_results: list[dict]) -> dict:
     """Compare predicted vs. measured optimal H on configurations never used for fitting.
 
     Returns {predicted_H, measured_H, regret_pct} per methods/statistics.md §3.

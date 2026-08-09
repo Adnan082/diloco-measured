@@ -2,8 +2,8 @@
 
 **Project:** Measured, Not Simulated — A Bandwidth-Controlled Evaluation of Semi-Synchronous LLM Training on Commodity Ethernet
 **Repository (intended):** `diloco-measured`
-**Document status:** v0.1 — pre-implementation master specification
-**Last updated:** 2026-08-08
+**Document status:** v0.1 — early implementation (Phase 0 in progress; see ADR-012)
+**Last updated:** 2026-08-09
 **Owner:** Project author (solo engineer)
 
 ---
@@ -2318,8 +2318,9 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 | TD-7 | One seed per convergence configuration | Cost; repeats spent on throughput instead | If a convergence conclusion turns out to be seed-sensitive |
 | TD-8 | Prometheus/Grafana optional and untested | Not authoritative for any result | Never — deliberate |
 | TD-9 | No packaging/publication to PyPI | Research instrument, not a dependency | If someone asks to depend on it |
+| TD-10 | `tool.mypy.python_version = "3.12"` while `requires-python = ">=3.11"` | numpy>=2.5's stubs use a `type X = ...` statement mypy only parses under a 3.12+ target; doesn't change the actual minimum supported Python | Revisit if a genuine 3.11-only incompatibility needs catching |
 
-**Every item in this table must appear in `LIMITATIONS.md` in reader-facing language.** Debt hidden from the reader is dishonesty; debt stated plainly is rigour.
+**Not reader-facing** (TD-10 is a dev-tooling quirk, not a project limitation): only TD-1 through TD-9 belong in `LIMITATIONS.md`. **Every item in that range must appear there** in reader-facing language. Debt hidden from the reader is dishonesty; debt stated plainly is rigour. Debt hidden from the reader is dishonesty; debt stated plainly is rigour.
 
 ---
 
@@ -2490,6 +2491,14 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Reason:** 130M permits ~13 convergence runs overnight; 1B matches the reference L40S setup for comparability; the 130M→500M jump tests the direction of H-scaling over one decade.
 **Trade-offs:** one decade is not five; must be stated (TD-6, R11).
 **Depends on:** Day 1 throughput measurement.
+
+---
+**ADR-012 — Reference DiLoCo trainer is model-agnostic plain-PyTorch, θ_outer held as a separate parameter set**
+**Status:** Accepted · **Date:** 2026-08-09
+**Context:** `measurement/diloco.py` (ADR-003's independent cross-check) needed an implementation before torchtitan/torchft are pinned (§40 Q2, still PENDING) — Phase 0 is meant to maximize offline-mode work (§31.1), and the reference trainer has no actual dependency on either.
+**Decision:** `DiLoCoTrainer` operates on any `nn.Module` via plain `torch.optim.AdamW` (inner) / `torch.optim.SGD(nesterov=True)` (outer). θ_outer is kept as a separate `nn.Parameter` list, never aliased to the model's live parameters, so `theta_inner <- theta_outer` at the top of each round (methods/diloco.md §1) is an explicit copy, and the outer step applies the pseudo-gradient via `.grad` assignment rather than a hand-rolled update rule (reuses PyTorch's own Nesterov-momentum implementation instead of re-deriving it). `outer_step()` calls `dist.all_reduce` only if `torch.distributed.is_initialized()`, so the same code path runs single-process (unit tests) and multi-rank (CPU integration test, and later the real 4-GPU job) without a mode flag.
+**Verification:** methods/diloco.md §3 invariants 1 and 2 are now directly tested — invariant 1 (inner optimizer state persists across rounds) as a single-process unit test asserting AdamW's state dict is untouched by `outer_step()`; invariant 2 (bit-identical θ_outer across replicas) as a 2-process CPU `gloo` integration test using `torch.multiprocessing.spawn` with TCP rendezvous on a free localhost port (chosen over file-store rendezvous for cross-platform reliability) and `dist.gather_object` to compare θ_outer across ranks in the test process.
+**Trade-offs:** the reference-vs-torchft equivalence test (US-06) remains skipped — it needs a pinned torchft (§40 Q2) and running it against unpinned `main` would violate the no-unpinned-installs rule (§33.2.8) while producing a meaningless pass/fail. `compress.py`'s three codecs (fp16, int8 error-feedback, top-k) were implemented alongside and unit-tested for the error-feedback residual-persistence invariant (methods/diloco.md §3 invariant 4) specifically, since CLAUDE.md §30.2 flags that as the invariant most likely to be silently broken.
 
 ---
 

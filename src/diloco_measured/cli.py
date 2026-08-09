@@ -18,7 +18,7 @@ import typer
 
 app = typer.Typer(
     name="diloco-measured",
-    help="Measured, not simulated: bandwidth-controlled semi-synchronous LLM training. See CLAUDE.md.",
+    help="Measured, not simulated: bandwidth-controlled semi-sync LLM training. See CLAUDE.md.",
     no_args_is_help=True,
 )
 
@@ -44,9 +44,11 @@ def run(
     spec: str = typer.Option(..., "--spec", help="Path to an ExperimentSpec YAML"),
     dry_run: bool = typer.Option(False, "--dry-run"),
 ) -> None:
-    """FR-03. One instrumented run. Writes results/raw/<run_id>.json + results/steps/<run_id>.parquet.
+    """FR-03. One instrumented run.
 
-    Idempotency: run_id includes repeat_index; re-running creates a NEW record, never overwrites.
+    Writes results/raw/<run_id>.json + results/steps/<run_id>.parquet.
+    Idempotency: run_id includes repeat_index; re-running creates a NEW record, never
+    overwrites.
     """
     raise NotImplementedError("Phase 0/1 — see CLAUDE.md §10.1 run lifecycle")
 

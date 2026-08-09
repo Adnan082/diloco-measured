@@ -14,6 +14,6 @@ import pytest
 
 
 @pytest.mark.e2e
-@pytest.mark.skip(reason="Requires a live 4-node cluster — not runnable until Phase 1 (CLAUDE.md §35)")
+@pytest.mark.skip(reason="Requires a live 4-node cluster — not runnable until Phase 1 (§35)")
 def test_smoke_run_completes_and_emits_valid_run_result():
     raise NotImplementedError
