@@ -1012,7 +1012,7 @@ Nothing here is chosen by default. Each row states purpose, rationale, alternati
 | **JSON + JSON Schema** | Result records + contract enforcement | Human-readable in a GitHub diff; schema gives a hard contract; no runtime dependency to read | `[CONFIRMED]` |
 | **Parquet (pyarrow)** | Per-step telemetry | Thousands of steps per run × hundreds of runs; JSON would bloat the repo | `[PROPOSED]` |
 | **pandas / polars** | Aggregation | Standard | `[PROPOSED]` — pandas unless volume demands otherwise |
-| **matplotlib** | Figures | Deterministic, scriptable, no JS runtime, renders in papers | `[PROPOSED]` |
+| **matplotlib** | Figures | Deterministic, scriptable, no JS runtime, renders in papers | `[CONFIRMED — in use since ADR-017]`, `Agg` backend, headless by construction |
 | **pydantic** | Spec + record validation in Python | Schema-as-code, good errors, generates JSON Schema | `[PROPOSED]` |
 | **Hugging Face `datasets`** | Dataset acquisition (control node only) | Standard access to FineWeb-Edu / C4 | `[PROPOSED]` |
 
@@ -2529,6 +2529,14 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Bug found while building this:** `experiment_spec.v1.json`'s `world_size` was `const: 4`, which would have rejected every valid single-GPU reference run FR-06 requires — caught because the reference-run fixture failed schema validation the first time the corpus was generated. Fixed to `minimum: 1`. This is exactly the value of building the fixture corpus now rather than waiting for real Phase 1 data to hit it.
 **Reason for "generated, not hand-written":** 25 files × ~30 schema fields each would drift from the schema the moment either changes if maintained by hand; the factory is the single source of truth, and the JSON files are still committed static data (ADR-004) — the script is rerun and the diff re-committed deliberately, not regenerated silently in CI.
 **Verification:** `tests/integration_cpu/test_aggregation_pipeline.py` — 8 tests running `load_run_results()` → `filter.apply()` → `aggregate_repeats()` against the real corpus, with exact expected exclusion counts per category (not just "some were excluded").
+
+---
+**ADR-017 — `fig1_cu_surface.py`: the headline figure, built and tested against the synthetic corpus**
+**Status:** Accepted · **Date:** 2026-08-09
+**Context:** `analysis/cu.py` (FR-04) and the fixture corpus (ADR-016) existed; nothing yet exercised them as an actual figure. `CLAUDE.md` §10.2 names this "CU surface (measured vs analytic) → Fig 1 (headline)" and §18 sets one non-negotiable presentation rule: measured series solid, analytic series dashed, matching colours — "this single convention carries the project's entire visual argument."
+**Decision:** `analysis/figures/fig1_cu_surface.py::build(records, algorithm, harness_version=None)` groups already-filtered `RunResult` records by `H` and `bandwidth_requested_bps`, restricted to `phase == "cu_grid"` and one `algorithm` (both required, no silent default — mixing algorithms or phases on one curve would conflate different communication patterns or different experiments at the same nominal (H, bandwidth) point). `matplotlib.use("Agg")` at import time makes the module unconditionally headless, satisfying FR-11 (`make figures` runs on a reviewer's laptop, no display).
+**Bug found while building this:** the fixture corpus's compression-ablation record was missing an explicit `phase` field and defaulted to `"cu_grid"` — which would have silently averaged a compression-ablation run's CU into the main grid's numbers. Caught the same way as ADR-016's `world_size` bug: writing the actual grouping/plotting code against the fixtures immediately surfaced it, rather than it lying latent until real Phase 3 data arrived. Fixed the fixture; added `phase == "cu_grid"` as an explicit filter in `_group_by_h_and_bandwidth()`, plus a regression test (`test_convergence_phase_records_do_not_leak_into_the_cu_grid_figure`) asserting the two records' `cu_measured` values (0.55 vs. the unrelated 0.85 default) are never blended.
+**Verification:** `tests/integration_cpu/test_fig1_cu_surface.py` — 8 tests against the real corpus, including a direct check that every line whose label contains "measured" has `linestyle == "-"` and every other line does not (the §18 invariant, checked as code, not just as a comment).
 
 ---
 

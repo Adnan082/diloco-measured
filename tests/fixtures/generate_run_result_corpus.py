@@ -159,7 +159,7 @@ def build_corpus() -> dict[str, dict]:
     add(
         "compression-diloco-130m-h32-bw200m-int8ef-r0",
         spec_overrides={
-            "algorithm": "diloco", "H": 32, "compression": "int8_ef",
+            "phase": "compression", "algorithm": "diloco", "H": 32, "compression": "int8_ef",
             "bandwidth_requested_bps": 200_000_000, "model_config": "configs/models/130m.toml",
         },
     )
