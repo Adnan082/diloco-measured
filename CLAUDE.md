@@ -1149,8 +1149,8 @@ diloco-measured/
 ## 14.2 Dependency rules
 
 ```text
-cli ──► measurement ──► substrate (torch, torchtitan, torchft)
- │
+cli ──► measurement ──┬──► substrate (torch, torchtitan, torchft)
+ │                     └──► schemas   (ExperimentSpec preflight validation, e.g. spec.py)
  └────► analysis ──► schemas
                 └──► results/  (READ ONLY)
 
@@ -1159,6 +1159,10 @@ FORBIDDEN EDGES:
   measurement ──X──► analysis
   figures    ──X──► anything that opens a socket or a CUDA context
   notebooks  ──X──► being a dependency of a published figure
+
+Note: schemas/ (including schemas/registry.py, the shared referencing.Registry builder) is a
+neutral dependency both measurement and analysis may import — the forbidden edges above are
+specifically analysis<->measurement, not either package's edge to schemas/ (ADR-013).
 ```
 
 ## 14.3 Naming conventions
@@ -2499,6 +2503,14 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Decision:** `DiLoCoTrainer` operates on any `nn.Module` via plain `torch.optim.AdamW` (inner) / `torch.optim.SGD(nesterov=True)` (outer). θ_outer is kept as a separate `nn.Parameter` list, never aliased to the model's live parameters, so `theta_inner <- theta_outer` at the top of each round (methods/diloco.md §1) is an explicit copy, and the outer step applies the pseudo-gradient via `.grad` assignment rather than a hand-rolled update rule (reuses PyTorch's own Nesterov-momentum implementation instead of re-deriving it). `outer_step()` calls `dist.all_reduce` only if `torch.distributed.is_initialized()`, so the same code path runs single-process (unit tests) and multi-rank (CPU integration test, and later the real 4-GPU job) without a mode flag.
 **Verification:** methods/diloco.md §3 invariants 1 and 2 are now directly tested — invariant 1 (inner optimizer state persists across rounds) as a single-process unit test asserting AdamW's state dict is untouched by `outer_step()`; invariant 2 (bit-identical θ_outer across replicas) as a 2-process CPU `gloo` integration test using `torch.multiprocessing.spawn` with TCP rendezvous on a free localhost port (chosen over file-store rendezvous for cross-platform reliability) and `dist.gather_object` to compare θ_outer across ranks in the test process.
 **Trade-offs:** the reference-vs-torchft equivalence test (US-06) remains skipped — it needs a pinned torchft (§40 Q2) and running it against unpinned `main` would violate the no-unpinned-installs rule (§33.2.8) while producing a meaningless pass/fail. `compress.py`'s three codecs (fp16, int8 error-feedback, top-k) were implemented alongside and unit-tested for the error-feedback residual-persistence invariant (methods/diloco.md §3 invariant 4) specifically, since CLAUDE.md §30.2 flags that as the invariant most likely to be silently broken.
+
+---
+**ADR-013 — `schemas/registry.py`: a shared, neutral schema-resolution helper for both measurement and analysis**
+**Status:** Accepted · **Date:** 2026-08-09
+**Context:** `measurement/spec.py` needed to validate an incoming `ExperimentSpec` against `experiment_spec.v1.json` (run lifecycle step 1, §10.1) — the same `$ref`-resolution machinery `analysis/load.py` already used to validate `RunResult`/`NetworkProfile` records. Duplicating the `referencing.Registry` construction in both places was the alternative, but §14.2's dependency diagram only showed `analysis ──► schemas`, leaving it ambiguous whether `measurement` was allowed the same edge.
+**Decision:** factor the registry/validator construction into `schemas/registry.py` (`load_registry()`, `validator_for()`, `format_errors()`) and have both `analysis/load.py` and `measurement/spec.py` import it. The forbidden edges in §11.2/§14.2 are specifically `analysis <-> measurement`, not either package's edge to `schemas/` — a schema is a contract, not measurement or analysis logic. §14.2's diagram is updated accordingly.
+**Reason:** avoids duplicating non-trivial `$ref`-resolution code (CLAUDE.md §32 Step 2: "search before creating"); the two-caller rule for introducing an abstraction (Architecture Principle #8, §33.2.9) is satisfied immediately, not speculatively.
+**Also in this change:** `measurement/spec.py::validate_experiment_spec()` closes a gap this document's own test suite had flagged (a JSON-Schema-only test proving `H == 1 iff algorithm == "ddp"` cannot be expressed in the schema alone) by enforcing that invariant plus the other two documented `ExperimentSpec` cross-field rules (compression only with `localsgd`/`diloco`; `budget_type == "tokens"` required for the `convergence` phase) explicitly. `measurement/fingerprint.py::capture()` was also implemented: best-effort local capture (git SHA/dirty flag, installed package versions, EC2 IMDS when reachable, `nvidia-smi` when present) with an explicit `"unknown"` sentinel — never a silent `None` — for fields the schema requires as non-nullable strings but that aren't determinable off-cluster; `scrub()` (account IDs, ARNs, private IPv4s) is applied unconditionally before `capture()` returns.
 
 ---
 

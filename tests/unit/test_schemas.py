@@ -40,11 +40,16 @@ def test_example_experiment_spec_validates(fixtures_dir, schemas_dir):
 
 
 @pytest.mark.unit
-def test_ddp_with_h_greater_than_one_is_a_documented_invariant_not_yet_enforced(schemas_dir):
-    """Documents a known gap: plain JSON Schema can't express 'H == 1 iff algorithm == ddp'
-    (CLAUDE.md §15.2 ExperimentSpec invariant). That cross-field rule must be enforced in
-    `analysis/load.py` / the spec-validation code path, not assumed to fall out of the schema.
-    This test exists so the gap is visible rather than silently relied upon.
+def test_bare_schema_alone_cannot_express_the_h_algorithm_invariant(schemas_dir):
+    """Plain JSON Schema can't express 'H == 1 iff algorithm == ddp' (CLAUDE.md §15.2
+    ExperimentSpec invariant) — this test documents that limit of the schema BY ITSELF.
+
+    The invariant IS enforced, just not here: see
+    `measurement/spec.py::validate_experiment_spec` and
+    `tests/unit/test_spec_validation.py`, which wraps this same schema with the cross-field
+    checks plain JSON Schema cannot do. This test's job is narrower and permanent: confirm
+    the schema file continues to accept this instance on its own, so nobody "fixes" the gap
+    by quietly hand-editing the schema instead of going through spec.py.
     """
     with open(schemas_dir / "experiment_spec.v1.json") as f:
         schema = json.load(f)
@@ -55,6 +60,4 @@ def test_ddp_with_h_greater_than_one_is_a_documented_invariant_not_yet_enforced(
         "grad_accum": 1, "budget_type": "steps", "budget_value": 1, "warmup_steps": 0,
         "seed": 0, "repeat_index": 0,
     }
-    # This currently PASSES schema validation despite violating the domain invariant —
-    # that gap is the point of this test.
     jsonschema.validate(instance=invalid_but_schema_valid, schema=schema)
