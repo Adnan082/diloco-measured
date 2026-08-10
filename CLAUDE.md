@@ -1828,12 +1828,15 @@ If someone later wants 16 nodes, the changes are: `world_size` in the spec, the 
 
 Append-only records with no cross-record mutation means there are no transactions and no consistency problems. A record either exists and is valid, or it does not exist. That property is worth more here than any convenience a database would add.
 
-## 29.4 Spot instance policy `[CONFIRMED — ADR-022, formerly §40 Q9]`
+## 29.4 Instance market policy `[CONFIRMED — ADR-025, supersedes ADR-022/§40 Q9]`
 
-- **Phase A (throughput grid):** spot. Points are short and re-runnable — a reclaim costs a re-run, not a corrupted result.
-- **Phase B (convergence):** on-demand, or spot with checkpointing. A reclaim at minute 38 of a 40-minute run is pure loss.
-- **Final headline re-runs (Day 7):** **on-demand only, quiet cluster.** Timing stability is the entire point.
-- **Control node:** always on-demand.
+**Everything on-demand. No spot, anywhere, for now.** Checked against the actual account
+(2026-08-10): the Spot "G and VT" vCPU quota is 8 — under the 32 vCPU the 4-node Phase A fleet
+needs simultaneously — and live `g6e.2xlarge` spot pricing (~$2.15–2.24/hr) was essentially
+identical to on-demand (~$2.24/hr). Spot bought no real discount and couldn't run the full
+fleet at once, so it was dropped everywhere rather than partially adopted. Revisit only if a
+spot-quota increase is granted **and** spot pricing later shows a genuine gap versus on-demand
+— re-check both before trusting this note.
 
 ---
 
@@ -2309,7 +2312,7 @@ This produces a figure that is wrong in a way nobody can detect from the figure.
 | ID | Risk | Prob | Impact | Mitigation |
 | --- | --- | --- | --- | --- |
 | **R13** | Cluster left running; budget blown | Medium | High | Idle alarm; billing alarm; idempotent teardown; cluster-hours ledger. **The most likely real incident in this project** |
-| **R14** | Spot reclaim mid-convergence-run | Medium | Medium | On-demand for Phase B and Day 7; periodic checkpoints |
+| **R14** | ~~Spot reclaim mid-convergence-run~~ — moot as of ADR-025 (everything is on-demand now); retained as a general instance-failure risk (host maintenance, hardware fault) | Low | Medium | Periodic checkpoints (still good practice regardless of instance market) |
 | **R15** | Environment drift between nodes | Low | **Critical** | Pinned lockfile; fingerprint on every record; bootstrap verifies version equality across nodes |
 | **R16** | Seven days is not enough for all six phases | **High** | Medium | Phase ordering is by value: M4 is the headline and lands on Day 3. M5/M6 are additive. Truncation degrades gracefully |
 | **R17** | Credentials or account identifiers committed | Low | High | Scrubber before write; pre-commit secret scan |
@@ -2343,11 +2346,6 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 
 ---
 
-**Q1 — Which AWS region and AZ has `g6e` capacity?**
-*Why it matters:* determines whether the project can start at all; capacity varies and the fleet must be co-located in one AZ and placement group.
-*Options:* (1) us-east-1 with a specific AZ; (2) us-east-2; (3) us-west-2; (4) fall back to `g6.2xlarge`/L4.
-*Recommendation:* check capacity in two AZs on Day 0 and pre-select a primary and a backup before writing the launcher.
-*Decision:* **PENDING — must resolve before Day 1.**
 
 ---
 
@@ -2557,10 +2555,11 @@ Sources: [FineWeb-Edu dataset card](https://huggingface.co/datasets/HuggingFaceF
 
 ---
 **ADR-022 — Spot instances for Phase A only; on-demand everywhere else (formerly §40 Q9)**
-**Status:** Accepted · **Date:** 2026-08-10 · **Decided by:** project owner, explicit choice
+**Status:** **Superseded by ADR-025** (same day — real account data invalidated the premise before any run used this policy) · **Date:** 2026-08-10 · **Decided by:** project owner, explicit choice
 **Decision:** Phase A (CU grid) repeats run on spot. Phase B (convergence), the Day 7 headline re-runs, and the control node are always on-demand.
 **Reason:** Phase A points are short (`[PROPOSED]` ≤5 min/point, NFR-06) and re-runnable — a spot reclaim costs a re-run, not a corrupted result. A reclaim mid-convergence-run or mid-headline-re-run is pure, uncheckpointed loss (R14) in a context where timing stability is the entire point of the run.
 **Also in this change:** §29.4 updated from `[RECOMMENDATION]` to `[CONFIRMED]` — no other section needed changes, since §29.4 already stated exactly this policy; §40 Q9 was just the last formally-open reference to it.
+**Why superseded:** this decision was made from the *general* spot-vs-on-demand tradeoff reasoning, before the account's actual spot quota and current spot pricing had been checked. See ADR-025 — both turned out to undercut the reasoning above.
 
 ---
 **ADR-023 — Per-step Parquet: full for a representative subset, aggregates for every run (formerly §40 Q10)**
@@ -2569,6 +2568,24 @@ Sources: [FineWeb-Edu dataset card](https://huggingface.co/datasets/HuggingFaceF
 **Decision:** every run gets its aggregated `RunResult` JSON (as already required, NFR/§16.1); a *representative subset* additionally gets its full per-step Parquet published in full.
 **Not resolved by this ADR:** exactly which runs count as "representative" — candidates on the table are one repeat per grid point, or specifically the runs any published figure's caption cites — is deferred to when real Phase A data volume is known (§16.4), same as the downsampling threshold below it. This ADR settles the *shape* of the policy (subset-in-full + aggregates-for-all), not its exact parameters.
 **Also in this change:** §16.4 updated with the confirmed policy and the still-open selection-rule note.
+
+---
+**ADR-024 — Region confirmed: `us-east-1`, no viable fallback (formerly §40 Q1)**
+**Status:** Accepted (region + quota fact) · AZ choice `[PROPOSED]`, to be re-confirmed at actual launch · **Date:** 2026-08-10
+**Context:** Q1 asked which region/AZ has `g6e` capacity, with `us-east-2` and `us-west-2` listed as candidate fallbacks alongside `us-east-1`. AWS access was connected this session (a fresh IAM user, `dilico`, needed a scoped policy attached before any read call worked at all — see the account's IAM console for the attached inline policy) and the account's real quotas and instance-type offerings were checked directly, not assumed.
+**Finding:** the account's **On-Demand "G and VT" vCPU quota is 32 in `us-east-1` and 0 in both `us-east-2` and `us-west-2`.** This isn't "capacity varies by region" — those two regions cannot run a single `g6e` instance at all under this account today. `us-east-1` is not a preference, it's the only option, unless a quota increase is separately requested and granted in another region. `g6e.2xlarge` is offered (AWS will accept the instance type) in all 4 of `us-east-1`'s AZs (a/b/c/d); `c7i.2xlarge` (control node) is offered in 5 (a/b/c/d/f) — so any of a/b/c/d works for both.
+**Decision:** region = `us-east-1`, confirmed. AZ: primary `us-east-1a`, backup `us-east-1b` (arbitrary choice among four equally-offered options — no signal favored one over another). **"Offered" is not "has physical capacity right now"** — that is genuinely only knowable by attempting a real launch, which is real spend and stays a Phase 1 Day 1 action (§35), not something this read-only check can promise. If `us-east-1a` fails with `InsufficientInstanceCapacity` at launch time, fall back to `us-east-1b`, then `c`, then `d`, in that order.
+**Also in this change:** this is the first commit in the project's history where AWS was actually reachable. The IAM user started with zero permissions attached (couldn't even call `sts:GetCallerIdentity` successfully at first, then couldn't call any `ec2:Describe*` after that was fixed) — a scoped inline policy (EC2 lifecycle, S3 under a `diloco-measured-*` prefix, `servicequotas`/`pricing` read) was attached before any of this was possible, matching §23's least-privilege principle rather than a wildcard admin grant.
+
+---
+**ADR-025 — Phase A also on-demand, not spot (supersedes ADR-022)**
+**Status:** Accepted · **Date:** 2026-08-10 · **Decided by:** project owner, explicit choice, after being shown the real numbers
+**Context:** ADR-022 (decided minutes earlier, same session) put Phase A on spot based on the general tradeoff (short, re-runnable points; cheaper). Once AWS access existed, the actual account data was checked before building anything on top of that assumption.
+**Finding:** the account's **Spot "G and VT" vCPU quota is 8** — enough for one `g6e.2xlarge` node (8 vCPU), not the 4 nodes (32 vCPU) Phase A runs simultaneously. Separately, **live spot pricing for `g6e.2xlarge` in `us-east-1` is ~$2.15–2.24/hr**, essentially identical to the ~$2.24/hr on-demand price already documented in §5.2 — negligible discount at current market conditions.
+**Decision:** Phase A runs on-demand, same as Phase B and the Day 7 headline re-runs. §29.4 no longer has a spot tier at all.
+**Reason:** ADR-022's premise (spot = cheaper, and short/re-runnable points absorb reclaim risk well) is sound in general, but doesn't survive contact with this account's actual numbers: under-quota'd for the fleet size needed, and not meaningfully cheaper today. Chasing a spot-quota increase for a ~0-4% discount wasn't judged worth the delay.
+**Trade-offs:** loses the theoretical spot-reclaim-is-cheap-to-absorb benefit entirely; gains operational simplicity (one instance-market policy for the whole project, no interruption handling to build anywhere) and removes a dependency on an AWS quota-increase request (not always fast or guaranteed) from the critical path.
+**Revisit if:** spot pricing later shows a real discount (re-check before Phase A actually runs, since pricing is a live market) AND the spot quota is separately increased to ≥32.
 
 ---
 
