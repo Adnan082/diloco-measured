@@ -11,8 +11,13 @@ license = { text = "Apache-2.0" }
 dependencies = [
     # measurement/ (needs GPUs + AWS on the actual cluster; importable everywhere for typing/tests)
     "torch>=2.4",
-    # "torchtitan @ git+https://github.com/pytorch/torchtitan@<PINNED_SHA>",   # ADR-009, PROPOSED — pin on Day 0
-    # "torchft @ git+https://github.com/pytorch/torchft@<PINNED_SHA>",        # §40 Q2, PENDING — pin on Day 0
+    # torchtitan is a plain pure-Python wheel; PyPI (0.2.2) lags `main` substantially, so
+    # pin a `main` SHA, not the release — confirmed via research 2026-08-10, see §40 Q2.
+    # "torchtitan @ git+https://github.com/meta-pytorch/torchtitan@<PINNED_SHA>",  # ADR-009, PROPOSED — pin on Day 0
+    # torchft has a Rust extension (maturin/PyO3) — building from a git SHA needs a Rust +
+    # protobuf-compiler toolchain on every node. `torchft-nightly` on PyPI publishes prebuilt
+    # manylinux_x86_64 wheels DAILY instead (confirmed 2026-08-10) — pin THAT, not a source SHA.
+    # "torchft-nightly==<PINNED_DATE_VERSION>",   # §40 Q2, PENDING — pin on Day 0, e.g. 2026.8.10
     "pydantic>=2.7",
     "typer>=0.12",
     # analysis/ (must remain GPU-free — see CLAUDE.md §11.2 forbidden edges)
