@@ -27,7 +27,10 @@ GPU_AMI_ID="${DILOCO_GPU_AMI:-ami-0e2e1c9b9d71cc77f}"       # Deep Learning OSS 
 CONTROL_AMI_ID="${DILOCO_CONTROL_AMI:-ami-052355af2a014bd2c}"  # ubuntu-noble-24.04-amd64-server-20260714 (plain, no GPU bloat)
 GPU_INSTANCE_TYPE="g6e.2xlarge"
 CONTROL_INSTANCE_TYPE="c7i.2xlarge"
-GPU_COUNT=4
+# Default 4 (the real experimental topology, CLAUDE.md §5.2). Override for a cheaper
+# connectivity/setup_node.sh test before committing to the full fleet, e.g.
+# DILOCO_GPU_COUNT=1 (~$2.60/hr: 1x g6e.2xlarge + 1x c7i.2xlarge, vs ~$9.33/hr for all 4).
+GPU_COUNT="${DILOCO_GPU_COUNT:-4}"
 PROJECT_TAG="diloco-measured"
 PLACEMENT_GROUP_NAME="${DILOCO_PG_NAME:-${PROJECT_TAG}-pg}"
 SECURITY_GROUP_NAME="${DILOCO_SG_NAME:-${PROJECT_TAG}-sg}"
@@ -91,7 +94,7 @@ if [ "$DRY_RUN" = false ] && [ -z "$OPERATOR_IP" ]; then
   exit 1
 fi
 
-log "region=$REGION az=$AZ dry_run=$DRY_RUN"
+log "region=$REGION az=$AZ dry_run=$DRY_RUN gpu_count=$GPU_COUNT"
 log "gpu_ami=$GPU_AMI_ID control_ami=$CONTROL_AMI_ID"
 
 AWS="aws --region $REGION"
