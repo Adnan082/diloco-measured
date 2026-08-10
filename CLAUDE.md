@@ -1653,7 +1653,7 @@ Not applicable, and deliberately so: CSRF, XSS, SQL injection, SSRF, file-upload
 | Who can access it? | Results are public by design. Dataset staging is private |
 | Retention | Results retained permanently. Cluster storage destroyed at teardown |
 | Sensitive data in results | Only the infrastructure identifiers noted in §23 — removed by the scrubber |
-| Licensing | Dataset licences must be checked and stated in `LIMITATIONS.md` before publication `[UNKNOWN — see §40 Q7]` |
+| Licensing | `[CONFIRMED]` FineWeb-Edu and C4 are both ODC-BY v1.0, both subject to Common Crawl's ToU (which includes an AI/ML-use indemnification clause, §40 Q7/ADR-019, `LIMITATIONS.md`). This repo redistributes neither raw nor tokenized dataset content — only checksums and download scripts |
 
 ---
 
@@ -2374,14 +2374,6 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 
 ---
 
-**Q7 — Dataset licensing for publication.**
-*Why it matters:* the repository will be public.
-*Options:* verify FineWeb-Edu and C4 terms; state them in `LIMITATIONS.md`.
-*Recommendation:* verify before publication; do not redistribute raw data — only tokenized shard checksums and download scripts.
-*Decision:* **PENDING.**
-
----
-
 **Q8 — Is a `netem` WAN-emulation sub-experiment in scope?**
 *Why it matters:* it would substantially strengthen the realism claim, but it multiplies the grid.
 *Options:* (1) out of scope, stated as a limitation; (2) a single point (80 ms RTT, 0.05% loss) at one bandwidth as a spot check; (3) a full axis.
@@ -2545,6 +2537,16 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Decision:** `analysis/figures/fig5_bytes_on_wire.py::build(records, algorithm, harness_version=None)` groups by `H` only, deliberately POOLING every bandwidth level at each `H` — the opposite of fig1_cu_surface's per-bandwidth grouping. This is correct, not an oversight: per methods/wire_model.md §2, bytes-on-wire per training token is `O(N/H)` and does not depend on bandwidth at all (bandwidth affects sync *time*, not the *byte count*), so pooling across bandwidth increases the effective repeat count for the median/IQR at each `H` rather than artificially fragmenting the same underlying quantity into separate series.
 **Verification:** to make this figure's H-trend test meaningful (rather than checking a flat placeholder), the fixture corpus's `wire` fields for the DiLoCo H-sweep records were regenerated using the REAL `wire.py::predict()` formula (`tests/fixtures/generate_run_result_corpus.py::_wire_overrides_for_diloco()`), not hand-set numbers — `test_measured_values_match_wire_predict_times_known_overhead_factor` asserts the plotted values trace back to that exact function, so the two can't silently drift apart. `test_bytes_per_token_decreases_with_h` checks the `O(1/H)` trend directly. `test_measured_is_solid_predicted_is_dashed` re-checks the §18 convention, same pattern as ADR-017.
 **Also in this change:** fixed a schema-adjacent bug the regenerated fixture data exposed immediately — `predicted_bytes`/`measured_bytes` are typed `integer` in `run_result.v1.json`, but the raw formula output is a float; the fixture generator now rounds before writing (this was never hit before because the old placeholder values happened to already be integers).
+
+---
+**ADR-019 — Dataset licensing verified (formerly §40 Q7): FineWeb-Edu and C4 are both ODC-BY, subject to Common Crawl's ToU**
+**Status:** Resolved (research finding, not a design choice — nothing here was a judgment call) · **Date:** 2026-08-10
+**Context:** §40 Q7 required verifying FineWeb-Edu's and C4's license terms before publication, since the repository is public.
+**Finding:** both datasets are released under the **Open Data Commons Attribution License (ODC-BY) v1.0**, and both are explicitly subject to **Common Crawl's Terms of Use** (both are Common-Crawl-derived). One clause is worth recording rather than discovering later: Common Crawl's ToU §9 requires users to indemnify Common Crawl for claims arising from "use of Crawled Content in connection with artificial intelligence, machine learning, or other similar technologies... including... large language models" — exactly this project's use. This is a standard indemnification clause, not a usage prohibition; using Common-Crawl-derived corpora for LLM pretraining is standard, widespread, published practice (both datasets are built and published for exactly this purpose). Not legal advice; this project carries no commercial stakes; recorded because a careful reviewer may ask.
+**Decision:** per the original §40 Q7 recommendation (now acted on, not merely proposed): this repository redistributes neither raw nor tokenized dataset content — only tokenized-shard checksums and download/tokenization scripts, so a reproducer fetches the corpus directly from its original source under the same license terms.
+**Also in this change:** `LIMITATIONS.md` "Dataset licensing" section written with full citations; §24's Privacy and Data Handling "Licensing" row updated from `[UNKNOWN]` to `[CONFIRMED]`.
+
+Sources: [FineWeb-Edu dataset card](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu), [C4 dataset card](https://huggingface.co/datasets/allenai/c4), [Common Crawl Terms of Use](https://commoncrawl.org/terms-of-use).
 
 ---
 

@@ -27,13 +27,41 @@ before publication.
 
 ## Methodological limitations
 
-- The analytic CU model attributed to "the literature" is one specific functional form
-  (`CLAUDE.md` §40 Q3, pending); a sensitivity analysis against alternative forms is planned but
-  not yet done.
+- The analytic CU model attributed to "the literature" is one specific functional form,
+  `CU = H·t_compute / (H·t_compute + bytes_synced·8/B)` (`CLAUDE.md` ADR-015 — confirmed by the
+  project owner, not derived from a single source paper). A sensitivity analysis against the two
+  rejected alternatives (partial overlap; per-paper reproduction) is required before publication
+  (`methods/cu_model.md` §6) and has not been run yet — it needs real Phase 3 grid data.
 - `torchft`'s LocalSGD/DiLoCo paths are explicitly experimental upstream (R2); mitigated by a
   cross-validated in-repo reference implementation (ADR-003), not eliminated.
 - Straggler heterogeneity across nominally-identical EC2 instances is measured but not fully
   separated from bandwidth effects in every figure (R10).
+
+## Dataset licensing (`CLAUDE.md` §40 Q7)
+
+Both candidate pretraining corpora — [FineWeb-Edu](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu)
+and [C4](https://huggingface.co/datasets/allenai/c4) — are released under the **Open Data Commons
+Attribution License (ODC-BY) v1.0**, which permits use and redistribution with attribution. Both
+are also explicitly subject to [Common Crawl's Terms of
+Use](https://commoncrawl.org/terms-of-use), since both are derived from the Common Crawl corpus.
+
+**One clause is worth stating plainly rather than discovering later:** Common Crawl's ToU
+(Section 9) requires users to indemnify Common Crawl for claims arising from "use of Crawled
+Content in connection with artificial intelligence, machine learning, or other similar
+technologies, including, without limitation, large language models and neural networks" — which
+is exactly what this project does with the data. This is a standard indemnification clause (not a
+usage prohibition), the Crawled Content itself is provided "AS IS" with a liability cap, and
+using Common-Crawl-derived corpora for LLM pretraining is standard, widespread practice across
+the field (both FineWeb-Edu and C4 are published, citable, widely-used-for-exactly-this-purpose
+datasets). This is not legal advice and this project carries no commercial stakes, but the clause
+exists and a careful reviewer may ask about it, so it's recorded here rather than left for them
+to find.
+
+**Mitigation already baked into the project's design (not new because of this research):** this
+repository does not redistribute raw or tokenized dataset content — only tokenized-shard
+checksums and the download/tokenization scripts, so a reproducer re-fetches the corpus directly
+from its original Hugging Face source under the same license terms, rather than from this repo
+(`CLAUDE.md` §40 Q7 recommendation, §16.4 retention policy).
 
 ## What is explicitly NOT claimed
 
