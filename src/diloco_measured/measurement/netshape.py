@@ -111,7 +111,7 @@ def build_tbf_del_args(iface: str) -> list[str]:
     return ["tc", "qdisc", "del", "dev", iface, "root"]
 
 
-def _ssh_run(
+def ssh_run(
     node: Node,
     remote_argv: list[str],
     use_sudo: bool = False,
@@ -162,10 +162,10 @@ def apply(
     common case, not an error.
     """
     for node in nodes:
-        _ssh_run(node, build_tbf_del_args(node.iface), use_sudo=True, timeout_s=15)
+        ssh_run(node, build_tbf_del_args(node.iface), use_sudo=True, timeout_s=15)
 
         if rate_bps is not None:
-            result = _ssh_run(
+            result = ssh_run(
                 node,
                 build_tbf_add_args(node.iface, rate_bps, burst_bytes, latency_ms),
                 use_sudo=True,
@@ -207,9 +207,9 @@ def verify(
     server_node, client_node = handle.nodes[0], handle.nodes[1]
 
     # Best-effort: kill any stale iperf3 server from a previous failed run on this port.
-    _ssh_run(server_node, ["pkill", "-f", f"iperf3 -s -p {IPERF3_PORT}"], timeout_s=10)
+    ssh_run(server_node, ["pkill", "-f", f"iperf3 -s -p {IPERF3_PORT}"], timeout_s=10)
 
-    _ssh_run(
+    ssh_run(
         server_node,
         ["bash", "-c", f"nohup iperf3 -s -p {IPERF3_PORT} > /tmp/iperf3_server.log 2>&1 & disown"],
         timeout_s=10,
@@ -217,7 +217,7 @@ def verify(
     time.sleep(IPERF3_SERVER_STARTUP_GRACE_S)
 
     try:
-        client_result = _ssh_run(
+        client_result = ssh_run(
             client_node,
             [
                 "iperf3", "-c", server_node.private_ip, "-p", str(IPERF3_PORT),
@@ -227,7 +227,7 @@ def verify(
         )
     finally:
         # Unconditional: the server must not be left running regardless of client outcome.
-        _ssh_run(server_node, ["pkill", "-f", f"iperf3 -s -p {IPERF3_PORT}"], timeout_s=10)
+        ssh_run(server_node, ["pkill", "-f", f"iperf3 -s -p {IPERF3_PORT}"], timeout_s=10)
 
     if client_result.returncode != 0:
         raise RuntimeError(
@@ -246,7 +246,7 @@ def verify(
     error_pct = compute_error_pct(handle.requested_bps, measured_bps)
     passed = error_pct <= tolerance_pct
 
-    qdisc_dump = _ssh_run(
+    qdisc_dump = ssh_run(
         server_node, ["tc", "qdisc", "show", "dev", server_node.iface], timeout_s=10
     ).stdout
 
@@ -277,4 +277,4 @@ def restore(handle: ShapingHandle) -> None:
     `tc qdisc show`; this function intentionally does not swallow that decision.
     """
     for node in handle.nodes:
-        _ssh_run(node, build_tbf_del_args(node.iface), use_sudo=True, timeout_s=15)
+        ssh_run(node, build_tbf_del_args(node.iface), use_sudo=True, timeout_s=15)
