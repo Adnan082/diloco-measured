@@ -81,6 +81,37 @@ check_dry_run() {
   exit 1
 }
 
+# Run a (real, non-dry-run) command with retries — specifically for RunInstances calls made
+# right after creating a security group or placement group in the SAME script run. AWS's
+# control plane does not guarantee a freshly created resource is immediately visible to every
+# other API's validation path; observed for real (2026-08-10): a placement group whose own
+# create-placement-group response already said `"State": "available"` still made the very
+# next RunInstances call fail with `InvalidParameterCombination: The parameter groupName
+# cannot be used with the parameter subnet` — a confusingly-worded but transient error that
+# went away on retry a few seconds later, and could not be reproduced at all when the same
+# exact parameters were run by hand afterward (i.e. it is a timing issue, not a real parameter
+# problem). Retrying beats guessing a fixed sleep, since propagation time isn't fixed.
+run_with_retry() {
+  local description="$1"
+  shift
+  local attempt=1
+  local max_attempts=5
+  local output
+  while [ "$attempt" -le "$max_attempts" ]; do
+    if output=$("$@" 2>&1); then
+      echo "$output"
+      return 0
+    fi
+    log "$description: attempt $attempt/$max_attempts failed, retrying in $((attempt * 5))s..."
+    log "$output"
+    sleep "$((attempt * 5))"
+    attempt=$((attempt + 1))
+  done
+  log "$description: FAILED after $max_attempts attempts"
+  log "$output"
+  exit 1
+}
+
 # ---- Preconditions ----------------------------------------------------------------------
 if ! command -v aws >/dev/null 2>&1; then
   log "ERROR: aws CLI not found on PATH."
@@ -229,7 +260,7 @@ launch_control_node() {
     return
   fi
 
-  $AWS ec2 run-instances \
+  run_with_retry "run-instances (control)" $AWS ec2 run-instances \
     --image-id "$CONTROL_AMI_ID" --instance-type "$CONTROL_INSTANCE_TYPE" --count 1 \
     --subnet-id "$SUBNET_ID" --security-group-ids "$SG_ID" --key-name "$KEY_NAME" \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Project,Value=$PROJECT_TAG},{Key=Role,Value=control}]" \
@@ -255,7 +286,7 @@ launch_gpu_nodes() {
     return
   fi
 
-  $AWS ec2 run-instances \
+  run_with_retry "run-instances (gpu x$GPU_COUNT)" $AWS ec2 run-instances \
     --image-id "$GPU_AMI_ID" --instance-type "$GPU_INSTANCE_TYPE" --count "$GPU_COUNT" \
     --subnet-id "$SUBNET_ID" --security-group-ids "$SG_ID" --key-name "$KEY_NAME" \
     --placement "GroupName=$PLACEMENT_GROUP_NAME,AvailabilityZone=$AZ" \
