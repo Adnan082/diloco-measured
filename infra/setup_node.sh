@@ -71,24 +71,53 @@ lock_gpu_clocks() {
 }
 
 # ---- 3. Local NVMe ------------------------------------------------------------------------
+# STATUS: [CONFIRMED] on the AMI pinned in launch_cluster.sh (Ubuntu 24.04 Deep Learning AMI)
+# — verified for real on a live g6e.2xlarge, 2026-08-10: that AMI's boot process ALREADY sets
+# up the instance-store NVMe as an LVM volume mounted at /opt/dlami/nvme, writable, ~391GB
+# free on a 419GB device. The original version of this function assumed nothing was mounted
+# and unconditionally ran `mkfs.ext4` on a guessed raw device (/dev/nvme1n1) — on THIS AMI
+# that device is real but is the LVM physical volume backing /opt/dlami/nvme already, so that
+# mkfs would have silently destroyed the AMI's own working setup instead of doing anything
+# useful. Caught by checking `lsblk` on a real running instance before ever executing this
+# function for real, not by reasoning about it in the abstract — reformat-on-guess is exactly
+# the kind of hard-to-reverse action worth verifying against reality first.
 mount_nvme() {
-  local mount_point="/mnt/nvme"
+  local dlami_path="/opt/dlami/nvme"
+  mount_point="${DILOCO_NVME_MOUNT:-$dlami_path}"   # not `local` — sync_dataset/verify_checksums read it too
+
   if mountpoint -q "$mount_point" 2>/dev/null; then
-    log "NVMe already mounted at $mount_point"
+    log "NVMe already mounted at $mount_point (this AMI sets it up at boot — nothing to do)"
+    if [ ! -w "$mount_point" ]; then
+      log "WARNING: $mount_point is not writable by $(whoami) — dataset sync will fail. Check ownership."
+    fi
     return
   fi
 
-  # g6e.2xlarge's instance-store NVMe device name — VERIFY on Day 1: instance-store device
-  # naming (/dev/nvme1n1 vs /dev/nvme2n1 etc.) depends on how many EBS volumes are also
-  # attached and is not guaranteed stable across instance types; this is a best guess, not
-  # a confirmed device path.
+  # The control node (c7i.2xlarge) has NO instance storage at all — verified for real,
+  # 2026-08-10: just an 8GB EBS root volume. That's expected, not an error (its job is
+  # orchestration/tokenization, not the measurement runs that need fast local dataset
+  # access) — skip gracefully rather than aborting the whole bootstrap over it.
   local device="${DILOCO_NVME_DEVICE:-/dev/nvme1n1}"
   if [ ! -b "$device" ]; then
-    log "ERROR: expected NVMe device $device not found. List actual block devices with"
-    log "'lsblk' and re-run with DILOCO_NVME_DEVICE=<real device>."
+    if [ "$ROLE" = "control" ]; then
+      log "no instance storage on this control node (expected on c7i.2xlarge) — using \$HOME instead"
+      mount_point="$HOME/diloco-data"
+      mkdir -p "$mount_point"
+      return
+    fi
+    log "ERROR: expected NVMe device $device not found on a GPU-role node. List actual block"
+    log "devices with 'lsblk' and re-run with DILOCO_NVME_DEVICE=<real device>."
     exit 1
   fi
 
+  # Fallback path for a GPU node whose AMI does NOT pre-mount instance storage (i.e. not the
+  # AMI launch_cluster.sh pins). Manual mkfs+mount is only safe here because we've already
+  # established the default mount point ($dlami_path) is NOT in use AND the device exists —
+  # if DILOCO_NVME_DEVICE points at a device that turns out to already hold data on some
+  # AMI/instance type nobody has checked yet, this will destroy it. VERIFY with `lsblk` by
+  # hand before trusting this path on any AMI other than the one launch_cluster.sh pins.
+  log "no pre-mounted instance storage found at $dlami_path — falling back to manual mkfs+mount"
+  log "WARNING: about to mkfs.ext4 -F $device — this destroys anything currently on it."
   log "formatting and mounting $device at $mount_point (requires sudo)"
   sudo mkfs.ext4 -F "$device"
   sudo mkdir -p "$mount_point"
@@ -105,7 +134,7 @@ sync_dataset() {
     log "dataset pre-tokenization is separate Phase 0 work, CLAUDE.md §35)"
     return
   fi
-  local dest="/mnt/nvme/dataset"
+  local dest="$mount_point/dataset"
   mkdir -p "$dest"
   log "syncing s3://$bucket/tokenized/ -> $dest"
   aws s3 sync "s3://$bucket/tokenized/" "$dest" --only-show-errors
@@ -113,7 +142,7 @@ sync_dataset() {
 
 # ---- 5. Checksum verification (FR-03 precondition) ---------------------------------------
 verify_checksums() {
-  local dest="/mnt/nvme/dataset"
+  local dest="$mount_point/dataset"
   local manifest="$dest/CHECKSUMS.sha256"
   if [ ! -f "$manifest" ]; then
     log "no checksum manifest at $manifest — skipping verification (nothing synced, or"
