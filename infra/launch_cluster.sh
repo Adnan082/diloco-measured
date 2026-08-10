@@ -274,25 +274,39 @@ launch_gpu_nodes() {
     log "GPU nodes already running/pending ($existing/$GPU_COUNT) — skipping"
     return
   fi
+  local remaining=$((GPU_COUNT - existing))
 
   if [ "$DRY_RUN" = true ]; then
     # --key-name and --placement's GroupName omitted for dry-run — same reasoning as
     # launch_control_node: neither the key pair nor the placement group necessarily exists
     # yet in dry-run mode, and this check validates RunInstances permission, not whether
     # every dependent resource has been created.
-    check_dry_run "run-instances (gpu x$GPU_COUNT)" $AWS ec2 run-instances \
-      --image-id "$GPU_AMI_ID" --instance-type "$GPU_INSTANCE_TYPE" --count "$GPU_COUNT" \
+    check_dry_run "run-instances (gpu x$remaining)" $AWS ec2 run-instances \
+      --image-id "$GPU_AMI_ID" --instance-type "$GPU_INSTANCE_TYPE" --count 1 \
       --subnet-id "$SUBNET_ID" --placement "AvailabilityZone=$AZ"
     return
   fi
 
-  run_with_retry "run-instances (gpu x$GPU_COUNT)" $AWS ec2 run-instances \
-    --image-id "$GPU_AMI_ID" --instance-type "$GPU_INSTANCE_TYPE" --count "$GPU_COUNT" \
-    --subnet-id "$SUBNET_ID" --security-group-ids "$SG_ID" --key-name "$KEY_NAME" \
-    --placement "GroupName=$PLACEMENT_GROUP_NAME,AvailabilityZone=$AZ" \
-    --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=200,VolumeType=gp3}' \
-    --tag-specifications "ResourceType=instance,Tags=[{Key=Project,Value=$PROJECT_TAG},{Key=Role,Value=gpu}]" \
-    --query "Instances[].InstanceId" --output text
+  # Launched as $remaining SEPARATE single-instance requests, not one --count N batch call.
+  # Observed for real (2026-08-10): a single run-instances --count 4 call was rejected with
+  # InsufficientInstanceCapacity in ALL FOUR us-east-1 AZs (a/b/c/d), even though a lone
+  # --count 1 request had succeeded earlier the same day. A batch request apparently needs
+  # AWS to find N free slots simultaneously; N independent single-instance requests each only
+  # need 1 free slot, and each gets its own run_with_retry backoff rather than sharing one.
+  # This also makes the "safe to re-run" idempotency claim above actually true for a partial
+  # fleet: $remaining is existing-aware, so re-running after a partial failure only requests
+  # the shortfall, not a fresh $GPU_COUNT.
+  log "launching $remaining gpu node(s) as $remaining separate single-instance request(s)"
+  local i
+  for i in $(seq 1 "$remaining"); do
+    run_with_retry "run-instances (gpu $i/$remaining)" $AWS ec2 run-instances \
+      --image-id "$GPU_AMI_ID" --instance-type "$GPU_INSTANCE_TYPE" --count 1 \
+      --subnet-id "$SUBNET_ID" --security-group-ids "$SG_ID" --key-name "$KEY_NAME" \
+      --placement "GroupName=$PLACEMENT_GROUP_NAME,AvailabilityZone=$AZ" \
+      --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=200,VolumeType=gp3}' \
+      --tag-specifications "ResourceType=instance,Tags=[{Key=Project,Value=$PROJECT_TAG},{Key=Role,Value=gpu}]" \
+      --query "Instances[0].InstanceId" --output text
+  done
 }
 
 # ---- Main --------------------------------------------------------------------------------
