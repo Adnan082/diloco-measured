@@ -1,18 +1,30 @@
 # Model config: ~130M params. Used for convergence runs (Phase 4) — small enough to permit
-# ~13 overnight runs (CLAUDE.md ADR-011). STATUS: [PROPOSED] — architecture numbers below are
-# placeholders; must be validated against torchtitan's actual Llama-3-style config on Day 0
-# (ADR-009 is still Proposed, not Accepted).
+# ~13 overnight runs (CLAUDE.md ADR-011).
+#
+# STATUS: [CONFIRMED] — dims validated 2026-08-10 by instantiating torchtitan's real
+# TransformerModelArgs/FeedForward hidden_dim formula (torchtitan 0.2.2, pure-Python parameter
+# count, no GPU needed) and computing the exact parameter count: 134,105,856 (~134.1M, within
+# the range "~130M" naming conventionally covers). ADR-009 (torchtitan as substrate) remains
+# [PROPOSED] pending the actual pinned SHA (§40 Q2) and a live GPU smoke test, but the
+# architecture field NAMES below are now real, not guessed.
 
 [model]
 name = "diloco-130m"
 approx_params = 130_000_000
-architecture = "llama3-style"  # [PROPOSED] — via torchtitan, pending ADR-009 validation
+architecture = "llama3-style"  # torchtitan.models.llama3.model.args.TransformerModelArgs
 
 [model.dims]
-dim = 768            # [UNKNOWN]
-n_layers = 12         # [UNKNOWN]
-n_heads = 12          # [UNKNOWN]
-vocab_size = 32000    # [UNKNOWN] — depends on tokenizer choice (Day 0)
+dim = 768
+n_layers = 12
+n_heads = 12
+n_kv_heads = 12       # == n_heads: standard MHA, no GQA at this size
+vocab_size = 32000    # [PROPOSED] — depends on tokenizer choice (Day 0); adjust and re-run
+                        # the param count if the tokenizer's real vocab differs
+hidden_dim = 2048      # DERIVED, not independently chosen — torchtitan's FeedForward computes
+                        # this from `dim` (int(2*4*dim/3), rounded up to a multiple of
+                        # multiple_of=256): 2*4*768/3 = 2048.0 -> already a multiple of 256.
+                        # Recorded here so the number is visible without re-deriving it, but
+                        # the actual config passed to torchtitan only sets `dim`.
 
 [train]
 seq_len = 1024         # [PROPOSED]

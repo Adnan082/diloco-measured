@@ -19,14 +19,16 @@ help:
 	@echo "  figures              regenerate report figures from results/raw/ (FR-11, no GPU)"
 	@echo ""
 	@echo "Cluster (costs money — see CLAUDE.md §31.1):"
-	@echo "  cluster-up           launch 4x GPU + 1 control node"
-	@echo "  bootstrap            install deps, lock clocks, sync dataset"
+	@echo "  cluster-up           DRY-RUN by default (validates AWS calls, creates/costs nothing)."
+	@echo "                       Real launch: LAUNCH=1 DILOCO_OPERATOR_IP=<your-ip> make cluster-up"
+	@echo "                       (~\$$9.33/hr once actually launched, CLAUDE.md §5.2)"
+	@echo "  bootstrap ROLE=gpu   install deps, lock clocks, sync dataset (ROLE=gpu|control)"
 	@echo "  network-characterize FR-01: iperf3 + NCCL BW curve + burst-decay probe"
 	@echo "  smoke                E2E gate: 4 nodes, tiny model, 20 steps"
 	@echo "  grid PHASE=A         run a campaign (FR-02..FR-05)"
 	@echo "  converge PHASE=B     fixed-token-budget convergence runs (FR-06)"
-	@echo "  cluster-down         idempotent teardown — leave nothing billable"
-	@echo "  cost-report          cumulative cluster-hours and spend"
+	@echo "  cluster-down         DRY-RUN by default. Real teardown: make cluster-down TEARDOWN=1"
+	@echo "  cost-report          cumulative cluster-hours and spend for what's running right now"
 
 # ---- Offline mode (§31.1) --------------------------------------------------
 
@@ -54,13 +56,22 @@ clean:
 	rm -rf results/figures/*
 	@echo "results/figures/ is generated and safe to delete (CLAUDE.md §14.1). results/raw/ is NOT touched."
 
-# ---- Cluster mode (§31.1 — costs ~\$9.33/hr; never develop here) -----------
+# ---- Cluster mode (§31.1 — costs ~\$9.33/hr once actually launched; never develop here) ---
 
+# cluster-up / cluster-down default to dry-run — the underlying scripts require an explicit
+# flag to actually create or terminate anything (infra/launch_cluster.sh, infra/teardown.sh).
 cluster-up:
+ifeq ($(LAUNCH),1)
+	bash infra/launch_cluster.sh --launch-for-real
+else
 	bash infra/launch_cluster.sh
+	@echo ""
+	@echo "[Makefile] That was a dry run. To actually launch (~\$$9.33/hr):"
+	@echo "[Makefile]   DILOCO_OPERATOR_IP=<your-ip> make cluster-up LAUNCH=1"
+endif
 
 bootstrap:
-	bash infra/setup_node.sh
+	bash infra/setup_node.sh $(or $(ROLE),gpu)
 
 network-characterize:
 	diloco-measured network characterize
@@ -75,7 +86,13 @@ converge:
 	diloco-measured converge --spec configs/grids/phase_$(or $(PHASE),B).yaml
 
 cluster-down:
+ifeq ($(TEARDOWN),1)
+	bash infra/teardown.sh --terminate-for-real
+else
 	bash infra/teardown.sh
+	@echo ""
+	@echo "[Makefile] That was a dry run. To actually terminate: make cluster-down TEARDOWN=1"
+endif
 
 cost-report:
 	bash infra/cost_report.sh

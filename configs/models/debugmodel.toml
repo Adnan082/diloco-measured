@@ -1,0 +1,32 @@
+# Tiny model for tests/e2e/test_smoke.py (CLAUDE.md §30.4: "~1M-parameter model, 20 steps").
+#
+# STATUS: [CONFIRMED] — this is torchtitan's OWN shipped "debugmodel" preset
+# (torchtitan.models.llama3.llama3_args["debugmodel"]), not a hand-rolled tiny config. Using
+# it directly means the smoke test exercises the exact same code path torchtitan's own tests
+# already exercise, rather than a config nobody but this project has ever run. Real parameter
+# count (validated 2026-08-10, same method as the other configs/models/*.toml): 6,163,712
+# (~6.2M) — bigger than the "~1M" description in §30.4, but still trivially small; §30.4's
+# number was an estimate written before torchtitan was actually inspected, not a hard target.
+
+[model]
+name = "diloco-debugmodel"
+approx_params = 6_163_712
+architecture = "llama3-style"  # torchtitan.models.llama3.llama3_args["debugmodel"], verbatim
+
+[model.dims]
+dim = 256
+n_layers = 6
+n_heads = 16
+n_kv_heads = 16      # == n_heads: no GQA, matches torchtitan's own preset exactly
+vocab_size = 2048     # matches torchtitan's own preset — NOT the real tokenizer's vocab size;
+                       # fine for a smoke test that never computes a meaningful loss
+hidden_dim = 768       # DERIVED, matches torchtitan's own preset (rope_theta=500000 also set
+                       # upstream but not relevant to param count)
+
+[train]
+seq_len = 128          # short — this is a wiring test, not a quality test
+micro_batch_size = 4
+grad_accum = 1
+
+[budget]
+smoke_steps = 20  # CLAUDE.md §30.4

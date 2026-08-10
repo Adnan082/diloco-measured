@@ -1,18 +1,24 @@
 # Model config: ~1B params. Matches the reference L40S semi-sync setup for comparability
 # (ADR-011); used for throughput/CU grid runs (Phase 3), NOT convergence (too slow/expensive
 # for repeated overnight runs — see CLAUDE.md §4.5 non-goals, "Models above ~1B parameters").
-# STATUS: [PROPOSED] scaffold, [UNKNOWN] dims.
+#
+# STATUS: [CONFIRMED] — dims validated 2026-08-10, same method as 130m.toml: exact parameter
+# count from torchtitan's real formulas is 973,559,552 (~973.6M, i.e. "~1B" is a slight
+# underclaim, not an overclaim — fine either way for the naming).
 
 [model]
 name = "diloco-1b"
 approx_params = 1_000_000_000
-architecture = "llama3-style"  # [PROPOSED], pending ADR-009
+architecture = "llama3-style"  # torchtitan.models.llama3.model.args.TransformerModelArgs
 
 [model.dims]
-dim = 2048              # [UNKNOWN]
-n_layers = 24            # [UNKNOWN]
-n_heads = 16             # [UNKNOWN]
-vocab_size = 32000       # [UNKNOWN]
+dim = 1792
+n_layers = 24
+n_heads = 16
+n_kv_heads = 8           # GQA, same ratio as 500m.toml and torchtitan's own presets
+vocab_size = 32000        # [PROPOSED] — depends on tokenizer choice (Day 0)
+hidden_dim = 4864          # DERIVED (see 130m.toml's note): int(2*4*1792/3)=4778 -> rounded
+                           # up to the next multiple of 256 -> 4864
 
 [train]
 seq_len = 1024

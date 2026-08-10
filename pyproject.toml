@@ -5,19 +5,23 @@ description = "Measured, not simulated: a bandwidth-controlled evaluation of sem
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
-# STATUS: [PROPOSED] — dependency set is provisional. Nothing here has been resolved
-# or lock-verified yet (CLAUDE.md D2/D4, §40 Q2, §40 Q4). Do not treat versions below
-# as pinned; a real lockfile (uv.lock) is Phase 0 work, not done by scaffolding.
+# STATUS: [PROPOSED] — dependency set is provisional. §40 Q4 (Docker vs bare metal) is
+# resolved (ADR-020: bare metal). §40 Q2 (torchft/torchtitan pins) has candidate pins below,
+# researched 2026-08-10 — re-verify freshness at Day 0, don't trust them past a few days old.
+# A real lockfile (uv.lock) is still Phase 0 work, not done by scaffolding.
 dependencies = [
     # measurement/ (needs GPUs + AWS on the actual cluster; importable everywhere for typing/tests)
     "torch>=2.4",
-    # torchtitan is a plain pure-Python wheel; PyPI (0.2.2) lags `main` substantially, so
-    # pin a `main` SHA, not the release — confirmed via research 2026-08-10, see §40 Q2.
-    # "torchtitan @ git+https://github.com/meta-pytorch/torchtitan@<PINNED_SHA>",  # ADR-009, PROPOSED — pin on Day 0
-    # torchft has a Rust extension (maturin/PyO3) — building from a git SHA needs a Rust +
-    # protobuf-compiler toolchain on every node. `torchft-nightly` on PyPI publishes prebuilt
-    # manylinux_x86_64 wheels DAILY instead (confirmed 2026-08-10) — pin THAT, not a source SHA.
-    # "torchft-nightly==<PINNED_DATE_VERSION>",   # §40 Q2, PENDING — pin on Day 0, e.g. 2026.8.10
+    # torchtitan: pure-Python wheel; PyPI (0.2.2) lags `main` substantially, so pinned to a
+    # `main` SHA instead. e061028 = last commit on `main` as of 2026-08-10 (research date).
+    # STILL RE-VERIFY FRESHNESS immediately before actual cluster bring-up — both projects
+    # publish continuously, so this pin has a shelf life measured in days, not weeks.
+    # "torchtitan @ git+https://github.com/meta-pytorch/torchtitan@e061028",  # ADR-009, pin candidate 2026-08-10
+    # torchft: has a Rust extension (maturin/PyO3) — building from a git SHA needs a Rust +
+    # protobuf-compiler toolchain on every node, confirmed by trying it (see §40 Q2). Pin the
+    # prebuilt manylinux_x86_64 nightly wheel instead. 2026.8.10 = latest observed build as of
+    # research date — RE-VERIFY at Day 0 the same way (torchft-nightly publishes daily).
+    # "torchft-nightly==2026.8.10",   # §40 Q2, pin candidate 2026-08-10
     "pydantic>=2.7",
     "typer>=0.12",
     # analysis/ (must remain GPU-free — see CLAUDE.md §11.2 forbidden edges)

@@ -1,16 +1,26 @@
 # Model config: ~500M params. "Scale check" — tests the direction of H-scaling over one
-# decade from 130M (CLAUDE.md ADR-011). STATUS: [PROPOSED] scaffold, [UNKNOWN] dims.
+# decade from 130M (CLAUDE.md ADR-011).
+#
+# STATUS: [CONFIRMED] — dims validated 2026-08-10, same method as 130m.toml: exact parameter
+# count from torchtitan's real formulas is 530,248,960 (~530.2M). The original placeholder
+# dims (dim=1536, n_layers=18, n_heads=16, no GQA) undercounted badly — replaced with a
+# GQA config (n_kv_heads=8) that actually lands near the target.
 
 [model]
 name = "diloco-500m"
 approx_params = 500_000_000
-architecture = "llama3-style"  # [PROPOSED], pending ADR-009
+architecture = "llama3-style"  # torchtitan.models.llama3.model.args.TransformerModelArgs
 
 [model.dims]
-dim = 1536             # [UNKNOWN]
-n_layers = 18           # [UNKNOWN]
-n_heads = 16            # [UNKNOWN]
-vocab_size = 32000      # [UNKNOWN]
+dim = 1280
+n_layers = 24
+n_heads = 16
+n_kv_heads = 8         # GQA (grouped-query attention), matching torchtitan's own 8B/70B/405B
+                         # presets' use of n_kv_heads=8 — kept consistent rather than inventing
+                         # a different GQA ratio at this size
+vocab_size = 32000      # [PROPOSED] — depends on tokenizer choice (Day 0)
+hidden_dim = 3584        # DERIVED (see 130m.toml's note on how): int(2*4*1280/3)=3413 ->
+                         # rounded up to the next multiple of 256 -> 3584
 
 [train]
 seq_len = 1024
