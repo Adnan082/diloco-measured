@@ -24,6 +24,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# --- Claude Code harness-internal (session lock files, not project content) ---
+.claude/scheduled_tasks.lock
+
 # --- Secrets (defense in depth — see CLAUDE.md NFR-07, §23) ---
 .env
 *.pem
