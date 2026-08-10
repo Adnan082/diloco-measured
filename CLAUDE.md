@@ -1022,8 +1022,8 @@ Nothing here is chosen by default. Each row states purpose, rationale, alternati
 | --- | --- | --- | --- |
 | **AWS EC2 + S3** | Compute and dataset staging | The available capacity; the quota constraint is defined in its terms | `[CONFIRMED]` |
 | **Bash + AWS CLI** for cluster lifecycle | `launch_cluster.sh` etc. | 5 instances, one week, one operator — Terraform would be ceremony | `[RECOMMENDATION]` — revisit only if the cluster is rebuilt more than ~10 times |
-| **`uv` or `pip` with a lockfile** | Reproducible envs | Version drift between nodes would silently corrupt measurements | `[PROPOSED]` — a lockfile is mandatory whichever tool |
-| **Docker** | Node environment | `[UNKNOWN]` — reduces drift but adds NCCL/network configuration surface. Decide on Day 0. See §40 Q4 |
+| **`uv` with a lockfile** | Reproducible envs, bare metal (no Docker) | Version drift between nodes would silently corrupt measurements; Docker was rejected — see below | `[CONFIRMED — ADR-020]` |
+| **Docker** | Node environment | Rejected for Day 1: reduces version drift (R15) but adds NCCL networking configuration surface on top of R1, already the higher-impact risk. Fewest moving parts wins while debugging NCCL for the first time | `[CONFIRMED — REJECTED, ADR-020]` — revisit only if drift is actually observed |
 | **pytest** | Tests | Standard | `[PROPOSED]` |
 | **GitHub Actions** | CI: unit + CPU integration only | Never touches AWS or GPUs | `[PROPOSED]` |
 | **Weights & Biases** | Experiment tracking | **Deliberately excluded from the critical path.** External, non-reproducible for third parties, and would undermine FR-11. May be used as a *mirror*, never as the source of truth | `[RECOMMENDATION — do not adopt as source of truth]` |
@@ -1417,7 +1417,15 @@ results/
 
 - Everything in `results/` is committed permanently. It is the artifact.
 - `results/figures/` is generated and may be deleted at any time.
-- Per-step Parquet may be downsampled if the repository exceeds `[PROPOSED]` 500 MB; the downsampling is itself recorded.
+- `[CONFIRMED — ADR-023, formerly §40 Q10]` Per-step Parquet is published in full only for a
+  representative subset of runs; every run still gets its aggregated `RunResult` JSON.
+  Exactly which runs count as "representative" is `[PROPOSED]`, to be picked once real Phase A
+  data volume is known (candidates: one repeat per grid point, or the specific runs any
+  published figure's caption cites) — but the *policy* (subset-in-full + aggregates-for-all,
+  not aggregates-only and not everything) is decided. The selection and any resulting
+  downsampling are themselves recorded, per the existing sentence below.
+- If the repository still exceeds `[PROPOSED]` 500 MB after that, per-step Parquet may be
+  further downsampled; the downsampling is itself recorded.
 
 ---
 
@@ -1820,9 +1828,9 @@ If someone later wants 16 nodes, the changes are: `world_size` in the spec, the 
 
 Append-only records with no cross-record mutation means there are no transactions and no consistency problems. A record either exists and is valid, or it does not exist. That property is worth more here than any convenience a database would add.
 
-## 29.4 Spot instance policy `[RECOMMENDATION]`
+## 29.4 Spot instance policy `[CONFIRMED — ADR-022, formerly §40 Q9]`
 
-- **Phase A (throughput grid):** spot is acceptable — points are short and re-runnable.
+- **Phase A (throughput grid):** spot. Points are short and re-runnable — a reclaim costs a re-run, not a corrupted result.
 - **Phase B (convergence):** on-demand, or spot with checkpointing. A reclaim at minute 38 of a 40-minute run is pure loss.
 - **Final headline re-runs (Day 7):** **on-demand only, quiet cluster.** Timing stability is the entire point.
 - **Control node:** always on-demand.
@@ -2104,7 +2112,8 @@ This produces a figure that is wrong in a way nobody can detect from the figure.
 
 **Objective:** arrive at the cluster with nothing left to write.
 
-- Resolve §40 Q1 (region/AZ capacity), Q2 (torchft version), Q4 (Docker or not).
+- Resolve §40 Q1 (region/AZ capacity), Q2 (torchft version). Q4 (Docker or not) is already
+  resolved — ADR-020, bare metal.
 - Write `PRIOR_ART.md` **first** — it forces precision about the gap and prevents scope drift all week.
 - Implement: `diloco.py`, `compress.py`, `cu.py` (both paths), `netshape.py`, `wire.py`, schemas, spec validation.
 - Test: 4-process gloo DiLoCo equivalence and invariants; `netshape` gate on loopback/two `t3.micro`s.
@@ -2350,22 +2359,6 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 
 ---
 
-**Q4 — Docker on the nodes, or bare metal + lockfile?**
-*Why it matters:* Docker reduces drift (R15) but adds NCCL networking configuration surface (R1), and R1 is the higher-impact risk.
-*Options:* (1) bare metal + `uv` lockfile; (2) NGC PyTorch container with `--network=host`; (3) custom AMI baked on Day 0.
-*Recommendation:* option 1 for Day 1 (fewest moving parts while debugging NCCL). Revisit only if drift is observed.
-*Decision:* **PENDING.**
-
----
-
-**Q5 — How is the target loss `L*` defined for TTTL?**
-*Why it matters:* TTTL is a headline metric and its definition determines every number derived from it.
-*Options:* (1) the single-GPU reference's final loss at the same token budget; (2) a fixed absolute loss; (3) a percentile of the best run.
-*Recommendation:* option 1 — it is the most defensible and makes "did not reach target" a meaningful category.
-*Decision:* **PENDING — blocks M5.**
-
----
-
 **Q6 — How many repeats, and how many seeds for convergence?**
 *Why it matters:* directly trades cost against statistical strength; under-repeating invalidates conclusions, over-repeating burns the budget.
 *Options:* (1) 3 repeats throughput / 1 seed convergence; (2) 5/2; (3) adaptive based on observed variance.
@@ -2381,18 +2374,6 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 *Decision:* **PENDING.**
 
 ---
-
-**Q9 — Are the Phase A repeats run on spot?**
-*Why it matters:* cost versus interruption risk and timing stability.
-*Recommendation:* spot for Phase A; on-demand for Phase B and all Day 7 headline re-runs; control node always on-demand.
-*Decision:* **PENDING.**
-
----
-
-**Q10 — Do we publish the raw per-step Parquet, or only aggregates?**
-*Why it matters:* repository size (NFR, ≤500 MB) versus reproducibility depth.
-*Recommendation:* publish per-step Parquet for a representative subset and aggregates for all; document the downsampling.
-*Decision:* **PENDING.**
 
 ---
 
@@ -2547,6 +2528,37 @@ Debt accepted deliberately, recorded so it is never mistaken for an oversight.
 **Also in this change:** `LIMITATIONS.md` "Dataset licensing" section written with full citations; §24's Privacy and Data Handling "Licensing" row updated from `[UNKNOWN]` to `[CONFIRMED]`.
 
 Sources: [FineWeb-Edu dataset card](https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu), [C4 dataset card](https://huggingface.co/datasets/allenai/c4), [Common Crawl Terms of Use](https://commoncrawl.org/terms-of-use).
+
+---
+**ADR-020 — Bare metal + `uv` lockfile on the GPU nodes, no Docker (formerly §40 Q4)**
+**Status:** Accepted · **Date:** 2026-08-10 · **Decided by:** project owner, explicit choice (recommended option accepted as-is)
+**Context:** Docker reduces cross-node version drift (R15) but adds container networking (`--network=host` or equivalent) as one more layer that can break NCCL rendezvous — and R1 (multi-node NCCL failing to establish) is already the highest-impact technical risk in the project (§38.1).
+**Decision:** bare metal + a `uv` lockfile on every node. No Docker, no NGC container, no custom AMI for Day 1.
+**Reason:** fewest moving parts while debugging NCCL for the first time on real hardware — when something breaks on Day 1, "is it Docker's networking or is it NCCL" is a diagnosis question this choice removes entirely. Revisit only if actual environment drift is observed (the risk Docker would have mitigated) — don't pre-solve a problem that may not occur.
+**Trade-offs:** environment drift between the 4 GPU nodes becomes possible in principle; mitigated by the lockfile plus the per-run environment fingerprint (FR-08, `measurement/fingerprint.py`) — a drift, if it happens, is at least visible after the fact, not silent.
+
+---
+**ADR-021 — TTTL target loss `L*` = the single-GPU reference run's final loss at the same token budget (formerly §40 Q5)**
+**Status:** Accepted · **Date:** 2026-08-10 · **Decided by:** project owner, explicit choice
+**Context:** FR-06 already described this exact definition when it was written — Q5 formally ratifies what was implicitly assumed throughout §6/§8/§43, rather than introducing something new.
+**Decision:** `L*` is the single-GPU reference run's final loss, at the same token budget as the configuration under test (not a fixed absolute number, not a percentile of the grid's best run).
+**Reason:** most defensible choice available — it's tied to an actual measured baseline rather than an arbitrary threshold — and it's what makes "did not reach target" (`tttl_s: null`) a meaningful, non-arbitrary category rather than a threshold nobody agreed on.
+**No other sections required updating:** FR-06, US-03, and the Glossary (§43 `TTTL`) already stated this definition; this ADR closes the formal PENDING status, it doesn't change any spec text.
+
+---
+**ADR-022 — Spot instances for Phase A only; on-demand everywhere else (formerly §40 Q9)**
+**Status:** Accepted · **Date:** 2026-08-10 · **Decided by:** project owner, explicit choice
+**Decision:** Phase A (CU grid) repeats run on spot. Phase B (convergence), the Day 7 headline re-runs, and the control node are always on-demand.
+**Reason:** Phase A points are short (`[PROPOSED]` ≤5 min/point, NFR-06) and re-runnable — a spot reclaim costs a re-run, not a corrupted result. A reclaim mid-convergence-run or mid-headline-re-run is pure, uncheckpointed loss (R14) in a context where timing stability is the entire point of the run.
+**Also in this change:** §29.4 updated from `[RECOMMENDATION]` to `[CONFIRMED]` — no other section needed changes, since §29.4 already stated exactly this policy; §40 Q9 was just the last formally-open reference to it.
+
+---
+**ADR-023 — Per-step Parquet: full for a representative subset, aggregates for every run (formerly §40 Q10)**
+**Status:** Accepted (policy) / `[PROPOSED]` (exact subset-selection rule) · **Date:** 2026-08-10 · **Decided by:** project owner, explicit choice
+**Context:** Publishing every run's full per-step Parquet risks the `[PROPOSED]` ≤500MB repo-size target once hundreds of runs accumulate (NFR); publishing aggregates only would mean a reviewer can never inspect the raw step-by-step timing behind any specific figure.
+**Decision:** every run gets its aggregated `RunResult` JSON (as already required, NFR/§16.1); a *representative subset* additionally gets its full per-step Parquet published in full.
+**Not resolved by this ADR:** exactly which runs count as "representative" — candidates on the table are one repeat per grid point, or specifically the runs any published figure's caption cites — is deferred to when real Phase A data volume is known (§16.4), same as the downsampling threshold below it. This ADR settles the *shape* of the policy (subset-in-full + aggregates-for-all), not its exact parameters.
+**Also in this change:** §16.4 updated with the confirmed policy and the still-open selection-rule note.
 
 ---
 
