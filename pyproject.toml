@@ -38,6 +38,14 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
 ]
+# infra/prepare_dataset.py only — tokenizing/streaming the corpus, a one-off control-node
+# step. Deliberately NOT in the base `dependencies`: measurement/ and analysis/ never import
+# this, and analysis/ must stay importable with a minimal, GPU-free, network-free dep set
+# (CLAUDE.md §11.2).
+dataprep = [
+    "transformers>=4.40",
+    "datasets>=2.19",
+]
 
 [project.scripts]
 diloco-measured = "diloco_measured.cli:app"
@@ -67,6 +75,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]  # lets tests import infra/prepare_dataset.py (not a src/ package)
 markers = [
     "unit: pure logic, fast, every commit",
     "integration_cpu: CPU-only distributed tests (gloo), no GPU, no AWS",
