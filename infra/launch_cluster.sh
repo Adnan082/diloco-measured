@@ -25,7 +25,11 @@ REGION="${DILOCO_REGION:-us-east-1}"                      # CLAUDE.md ADR-024 �
 AZ="${DILOCO_AZ:-us-east-1a}"                              # ADR-024 primary; try 1b/1c/1d if this fails
 GPU_AMI_ID="${DILOCO_GPU_AMI:-ami-0e2e1c9b9d71cc77f}"       # Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.12 (Ubuntu 24.04) 20260725
 CONTROL_AMI_ID="${DILOCO_CONTROL_AMI:-ami-052355af2a014bd2c}"  # ubuntu-noble-24.04-amd64-server-20260714 (plain, no GPU bloat)
-GPU_INSTANCE_TYPE="g6e.2xlarge"
+# CLAUDE.md §38.1 R1's documented capacity fallback: 2x g6e.4xlarge (16 vCPU each = 32 vCPU
+# total, still exactly at quota, still 1 L40S GPU per node -- just fewer, bigger nodes) when
+# g6e.2xlarge itself has no capacity. Override both together, e.g.
+# DILOCO_GPU_INSTANCE_TYPE=g6e.4xlarge DILOCO_GPU_COUNT=2.
+GPU_INSTANCE_TYPE="${DILOCO_GPU_INSTANCE_TYPE:-g6e.2xlarge}"
 CONTROL_INSTANCE_TYPE="c7i.2xlarge"
 # Default 4 (the real experimental topology, CLAUDE.md §5.2). Override for a cheaper
 # connectivity/setup_node.sh test before committing to the full fleet, e.g.
@@ -125,7 +129,7 @@ if [ "$DRY_RUN" = false ] && [ -z "$OPERATOR_IP" ]; then
   exit 1
 fi
 
-log "region=$REGION az=$AZ dry_run=$DRY_RUN gpu_count=$GPU_COUNT"
+log "region=$REGION az=$AZ dry_run=$DRY_RUN gpu_count=$GPU_COUNT gpu_instance_type=$GPU_INSTANCE_TYPE"
 log "gpu_ami=$GPU_AMI_ID control_ami=$CONTROL_AMI_ID"
 
 AWS="aws --region $REGION"
