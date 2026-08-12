@@ -39,13 +39,43 @@ log() { echo "[retry_across_azs] $*" >&2; }
 cleanup_stranded() {
   local ids
   ids=$(aws ec2 describe-instances --region "$REGION" \
-    --filters "Name=tag:Project,Values=$PROJECT_TAG" "Name=instance-state-name,Values=pending,running" \
+    --filters "Name=tag:Project,Values=$PROJECT_TAG" "Name=instance-state-name,Values=pending,running,shutting-down,stopping" \
     --query "Reservations[].Instances[].InstanceId" --output text)
   if [ -n "$ids" ]; then
     log "cleaning up stranded instance(s): $ids"
     aws ec2 terminate-instances --region "$REGION" --instance-ids $ids >/dev/null
+    # A placement group cannot be deleted while any of its instances are still
+    # terminating (even "shutting-down" blocks it) -- confirmed the hard way
+    # 2026-08-12: deleting immediately after terminate-instances silently failed
+    # (previously swallowed by a bare `|| true`), leaving a stale placement group
+    # locked to the wrong AZ, which then produced a FALSE "capacity failure" on
+    # every subsequent AZ in that pass (they never actually tested capacity at
+    # all). Wait for real termination before touching the group.
+    log "waiting for instance(s) to fully terminate before deleting the placement group..."
+    aws ec2 wait instance-terminated --region "$REGION" --instance-ids $ids
   fi
-  aws ec2 delete-placement-group --region "$REGION" --group-name "$PLACEMENT_GROUP_NAME" 2>/dev/null || true
+
+  # Retry the delete: even after "terminated", AWS's internal placement-group
+  # accounting can lag by a few seconds -- the same class of eventual-consistency
+  # issue run_with_retry() in launch_cluster.sh already exists to paper over
+  # (ADR-027). "does not exist" is a legitimate reason delete fails too (nothing to
+  # clean up, e.g. this AZ's attempt never got far enough to create one) -- checked
+  # explicitly below so that case returns cleanly instead of retrying pointlessly.
+  local attempt=1
+  while [ "$attempt" -le 5 ]; do
+    if aws ec2 delete-placement-group --region "$REGION" --group-name "$PLACEMENT_GROUP_NAME" 2>/dev/null; then
+      return 0
+    fi
+    if ! aws ec2 describe-placement-groups --region "$REGION" \
+         --filters "Name=group-name,Values=$PLACEMENT_GROUP_NAME" \
+         --query "PlacementGroups[0].GroupId" --output text 2>/dev/null | grep -q "^pg-"; then
+      return 0
+    fi
+    log "delete-placement-group attempt $attempt/5 failed, retrying in 5s..."
+    sleep 5
+    attempt=$((attempt + 1))
+  done
+  log "WARNING: could not delete placement group $PLACEMENT_GROUP_NAME after 5 attempts -- may need manual cleanup"
 }
 
 for az in "${AZS[@]}"; do
