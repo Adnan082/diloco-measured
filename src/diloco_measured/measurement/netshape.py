@@ -38,14 +38,21 @@ class Node:
     VPC-internal address, not the public one, matches how real training traffic flows and is
     what `verify()` measures between.
 
-    `iface` defaults to `ens5` per CLAUDE.md §11.1's architecture diagram — `[PROPOSED]`,
-    confirm the real primary interface name (`ip link show`) against the actual pinned AMI on
-    Day 1; it has not been checked against a live node.
+    `iface` defaults to `enp39s0` — `[CONFIRMED]` against a live `g6e.2xlarge` running
+    `launch_cluster.sh`'s pinned Deep Learning AMI, 2026-08-14 (see ADR-033). CLAUDE.md
+    §11.1's architecture diagram had assumed `ens5`, which does not exist on this AMI —
+    caught because a real 4-node NCCL all-reduce failed with `ncclInvalidUsage` after
+    `NCCL_SOCKET_IFNAME=ens5` pointed at a nonexistent device; `ip -brief addr show`
+    confirmed `enp39s0` is the actual primary interface, consistently, on all 4 GPU nodes.
+    This matters beyond the NCCL test: every `tc` shaping command in this module targets
+    `node.iface` too, so the old default would have made FR-02 shaping either fail loudly
+    (best case) or silently target nothing (worst case, if `tc` doesn't error on an absent
+    device the way it was invoked) — re-verify this value if the pinned AMI ever changes.
     """
 
     host: str
     private_ip: str
-    iface: str = "ens5"
+    iface: str = "enp39s0"
     ssh_user: str = "ubuntu"  # matches the Ubuntu AMI launch_cluster.sh pins, ADR-027
     ssh_key_file: str = "~/.ssh/diloco-measured-key.pem"  # matches launch_cluster.sh's KEY_FILE
 
