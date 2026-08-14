@@ -7,45 +7,50 @@ on Commodity Ethernet.**
 > repository contains measured ones, the code that produced them, and the discrepancy between
 > the two.
 
-**Document status:** `[CONFIRMED]` — real training measurement landed on real GPU hardware
-(2026-08-14, see `CLAUDE.md` ADR-034). The figure and numbers below are real, not placeholders.
-They are a **first, unshaped slice** — one bandwidth level, one repeat per `H` — not yet the
-full shaped multi-bandwidth grid (`CLAUDE.md` §35 Phase 3, `M4`) that is this project's actual
-headline deliverable. See "What's real so far" below for the precise scope.
+**Document status:** `[CONFIRMED]` — a real, shaped, multi-bandwidth compute-utilization grid
+has run on real GPU hardware (2026-08-14/15, see `CLAUDE.md` ADR-035). The figure and numbers
+below are real, not placeholders. Scope: DiLoCo only (no DDP/FSDP2/LocalSGD driver yet), one
+30.8M-parameter model, one repeat per point. See "What's real so far" below for the precise
+scope and what's still open.
 
 👉 **Read [`PRIOR_ART.md`](PRIOR_ART.md) first.** It states exactly what is and is not novel here.
 
 ---
 
-## The headline result so far (real, first slice — not the full grid yet)
+## The headline result
 
 Real DiLoCo training, 4× `g6e.2xlarge` (L40S, TCP-only interconnect, no NVLink/EFA), 30.8M
-real parameters, real FineWeb-Edu data, `H ∈ {1, 8, 32, 128}`, unshaped baseline:
+real parameters, real FineWeb-Edu data, real Linux `tc` bandwidth shaping verified against a
+real `iperf3` measurement before every run (FR-02) — `H ∈ {1, 8, 32, 128}` × bandwidth
+`∈ {50, 200, 1000, 5000} Mbit/s`, 16 points, zero shaping-gate failures, zero crashes:
 
-![Compute utilization vs. synchronization interval H — measured vs. analytic, DiLoCo, unshaped](report/assets/fig4_cu_vs_h_diloco_bwunshaped.png)
+![Compute utilization vs. bandwidth — measured vs. analytic, DiLoCo, 4 values of H](report/assets/fig1_cu_surface_diloco.png)
 
-| H | cu_measured | cu_analytic_link | cu_analytic_achieved | discrepancy (link) |
+`cu_measured` (compute utilization — fraction of wall-clock time spent computing rather than
+blocked on the network):
+
+| H | 50 Mbit/s | 200 Mbit/s | 1 Gbit/s | 5 Gbit/s |
 | --- | --- | --- | --- | --- |
-| 1 | 0.167 | 0.199 | 0.280 | 1.19× |
-| 8 | 0.602 | 0.656 | 0.749 | 1.09× |
-| 32 | 0.710 | 0.883 | 0.922 | 1.24× |
-| 128 | 0.839 | 0.968 | 0.979 | 1.15× |
+| 1 | 0.07% | 0.32% | 1.74% | 7.76% |
+| 8 | 0.55% | 2.48% | 12.35% | 40.24% |
+| 32 | 2.41% | 10.01% | 36.01% | 68.10% |
+| 128 | 11.55% | 36.09% | 71.52% | 87.00% |
 
-Measured compute utilization is **below both** analytic predictions at every `H` tested —
-real hardware underperforms the literature's simulated model, in the direction the project's
-pre-registered hypothesis (`CLAUDE.md` §2.7) predicted, by roughly 1.1–1.25× on link bandwidth.
+This is DiLoCo's core value proposition, measured directly: at `H=1` (sync every step, like
+DDP) compute utilization **collapses** under bandwidth scarcity — the GPUs sit almost entirely
+idle waiting on the network. At `H=128`, the same 50 Mbit/s link sustains **11.55%** CU —
+roughly **165× better utilization** from amortizing the same sync cost over 128 steps instead
+of 1. Measured CU is below the naive analytic model at every one of the 16 points
+(`discrepancy_link` 1.08×–1.92×, worst at the low-bandwidth/low-`H` corner) — real hardware
+underperforms the literature's simulated model everywhere tested, and the size of the gap
+itself varies with the operating point rather than being a single constant factor. Full
+writeup: `CLAUDE.md` ADR-035.
 
-A genuine, unplanned secondary finding: real NCCL all-reduce bandwidth (14.3–15.8 Gbit/s
-plateau) came in **higher** than raw point-to-point `iperf3` (~9.53 Gbit/s) at the same link —
-ring-topology parallelism beating a single TCP flow. That's the opposite of what one of the
-pre-registered mechanisms expected, and it's recorded as a revision to that mechanism, not
-swept under the rug. Full writeup: `CLAUDE.md` ADR-034.
-
-**What this is not yet:** this slice is unshaped (no `tc` bandwidth cap), one repeat per `H`,
-and driven by a hand-written `torchrun` script rather than the fully automated, gated run
-lifecycle (`FR-03`). The shaped multi-bandwidth grid — the comparison that actually answers
-"how much bandwidth do I need" — has not run yet. See `experiments/01_cu_grid/NOTES.md` and
-ADR-034's "Not resolved" section for the complete, honest list of what's still open.
+**What this is not yet:** DiLoCo only — no training driver exists yet for DDP/FSDP2/LocalSGD,
+so this is not the full 4-algorithm `phase_a.yaml` comparison. One repeat per point (no
+variance estimate). A 30.8M-parameter model, not the 1B `phase_a.yaml` specifies. See
+`experiments/01_cu_grid/NOTES.md` and ADR-035's "Not resolved" section for the complete,
+honest list.
 
 ## What's real so far
 
@@ -55,8 +60,9 @@ ADR-034's "Not resolved" section for the complete, honest list of what's still o
 | `torchft-nightly` + `torchtitan`, pinned and validated on a real L40S | ✅ ADR-032 |
 | FR-01 network characterization (`iperf3` all-pairs, NCCL bandwidth curve, burst-decay probe) | ✅ `results/network/phase1-us-east-1b-20260814.json` |
 | Real FineWeb-Edu data, gpt2-tokenized, staged per-node | ✅ ADR-034 |
-| First real DiLoCo training measurement (`H` sweep, unshaped) | ✅ `results/raw/cu_grid-diloco-30m-h{1,8,32,128}-bwunshaped-r0.json`, ADR-034 |
-| Shaped, multi-bandwidth grid (`configs/grids/phase_a.yaml`) — the actual headline deliverable | ⬜ not yet run |
+| First real DiLoCo training measurement (`H` sweep, unshaped) | ✅ ADR-034 |
+| **Shaped, multi-bandwidth DiLoCo grid** (real `tc` shaping + FR-02 gate, 16 points) | ✅ `results/raw/cu_grid-diloco-30m-h*-bw*-r0.json`, ADR-035 |
+| DDP / FSDP2 / LocalSGD drivers (the rest of `phase_a.yaml`'s 4-algorithm comparison) | ⬜ not yet built |
 | Convergence / time-to-target-loss runs | ⬜ not yet run |
 | Fault injection, predictor validation | ⬜ not yet run |
 
@@ -107,9 +113,10 @@ in it is hand-drawn.
 
 ## Status
 
-Phase 1/2 in progress (`CLAUDE.md` v0.1). Network characterization (Phase 1) and a first
-unshaped training slice (early Phase 2) are done and committed. The shaped multi-bandwidth
-grid (Phase 3, `M4` — the project's actual headline deliverable) has not run yet. See
+Phase 2 in progress (`CLAUDE.md` v0.1). Network characterization (Phase 1) and a real shaped,
+multi-bandwidth DiLoCo grid (Phase 2/3, `M3`/`M4` — the project's headline construct) are done
+and committed, DiLoCo-only. Extending the same grid to DDP/FSDP2/LocalSGD, more repeats, and a
+larger model are the main remaining work toward the full `phase_a.yaml` scope. See
 `CLAUDE.md` §35 for the full phase plan and §40 for remaining open questions.
 
 ## License

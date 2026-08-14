@@ -124,8 +124,9 @@ def build(
     version_label = harness_version if harness_version is not None else "mixed/unspecified"
     ax.set_title(
         f"Compute utilization vs. bandwidth — {algorithm}\n"
-        f"harness_version={version_label} · {len(counted_run_ids)} contributing runs · "
-        "solid=measured, dashed/dotted=analytic"
+        f"harness_version={version_label} · {len(counted_run_ids)} contributing runs\n"
+        "solid=measured, dashed/dotted=analytic",
+        fontsize=10,
     )
     fig.tight_layout()
     return fig
