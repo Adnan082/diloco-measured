@@ -36,15 +36,35 @@ log "role=$ROLE"
 # hit this the same way.
 install_system_packages() {
   if [ "$ROLE" != "gpu" ]; then
-    return   # control node never builds/runs a model locally
+    return   # control node never builds/runs a model, and isn't part of FR-01's iperf3 mesh
   fi
-  if python3 -c "import sysconfig,os; assert os.path.exists(os.path.join(sysconfig.get_path('include'),'Python.h'))" 2>/dev/null; then
-    log "Python.h already present — skipping"
+
+  local need_apt_update=false
+  local to_install=""
+
+  if ! python3 -c "import sysconfig,os; assert os.path.exists(os.path.join(sysconfig.get_path('include'),'Python.h'))" 2>/dev/null; then
+    to_install="$to_install python3-dev gcc"
+    need_apt_update=true
+  fi
+  # FR-01 precondition (CLAUDE.md): "iperf3 installed on all nodes" — needed on every GPU
+  # node for the all-pairs bandwidth characterization; the control node isn't part of that
+  # mesh (its own network isn't part of the experimental measurement) so this stays gated on
+  # role=gpu, same as the compiler toolchain above.
+  if ! command -v iperf3 >/dev/null 2>&1; then
+    to_install="$to_install iperf3"
+    need_apt_update=true
+  fi
+
+  if [ -z "$to_install" ]; then
+    log "Python.h and iperf3 both already present — skipping system package install"
     return
   fi
-  log "installing python3-dev + gcc (required for torchtitan's FlexAttention Triton JIT compile, requires sudo)"
-  sudo apt-get update -qq
-  sudo apt-get install -y -qq python3-dev gcc
+  log "installing$to_install (requires sudo)"
+  if [ "$need_apt_update" = true ]; then
+    sudo apt-get update -qq
+  fi
+  # shellcheck disable=SC2086
+  sudo apt-get install -y -qq $to_install
 }
 
 # ---- 2. Pinned dependencies -------------------------------------------------------------
