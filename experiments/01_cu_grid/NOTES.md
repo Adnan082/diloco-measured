@@ -6,7 +6,7 @@ sanitized narrative does not belong here.
 **First real slice run 2026-08-14** (see CLAUDE.md ADR-034): `algorithm=diloco`,
 `model_config=30m-realvocab` (30,846,720 real params, real gpt2 vocab), **unshaped** baseline
 (no `tc` shaping — this is not the full multi-bandwidth `phase_a.yaml` grid yet, just the first
-H-sweep at one bandwidth level), `H ∈ {1, 8, 32, 128}`, 150–200 steps each, 10 steps warmup
+H-sweep at one bandwidth level), `H ∈ {1, 8, 32, 128}`, 150–200 steps each, 20 steps warmup
 discarded, 1 repeat per point (`r0` — no repeat-variance data yet, CLAUDE.md §40 Q6 still
 open). Real 4x g6e.2xlarge cluster, `us-east-1b`, placement group `pg-04ac04963de1615d8`.
 
