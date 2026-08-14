@@ -1,0 +1,52 @@
+{
+  "profile_id": "phase1-us-east-1b-20260814",
+  "captured_at": "2026-08-14T16:36:20Z",
+  "cluster_id": "pg-04ac04963de1615d8",
+  "iperf_pairs": [
+    { "from_node": "172.31.87.8", "to_node": "172.31.87.204", "direction": "send", "gbit_s": 9.530112832232550, "duration_s": 60 },
+    { "from_node": "172.31.87.8", "to_node": "172.31.82.33", "direction": "send", "gbit_s": 9.530236592782026, "duration_s": 60 },
+    { "from_node": "172.31.87.8", "to_node": "172.31.90.38", "direction": "send", "gbit_s": 9.530058498673240, "duration_s": 60 },
+    { "from_node": "172.31.87.204", "to_node": "172.31.87.8", "direction": "send", "gbit_s": 9.530009406517925, "duration_s": 60 },
+    { "from_node": "172.31.87.204", "to_node": "172.31.82.33", "direction": "send", "gbit_s": 9.530048805505130, "duration_s": 60 },
+    { "from_node": "172.31.87.204", "to_node": "172.31.90.38", "direction": "send", "gbit_s": 9.529940456024270, "duration_s": 60 },
+    { "from_node": "172.31.82.33", "to_node": "172.31.87.8", "direction": "send", "gbit_s": 9.530022752802435, "duration_s": 60 },
+    { "from_node": "172.31.82.33", "to_node": "172.31.87.204", "direction": "send", "gbit_s": 9.530117438349810, "duration_s": 60 },
+    { "from_node": "172.31.82.33", "to_node": "172.31.90.38", "direction": "send", "gbit_s": 9.530129986071130, "duration_s": 60 },
+    { "from_node": "172.31.90.38", "to_node": "172.31.87.8", "direction": "send", "gbit_s": 9.530076292195415, "duration_s": 60 },
+    { "from_node": "172.31.90.38", "to_node": "172.31.87.204", "direction": "send", "gbit_s": 9.529998283838156, "duration_s": 60 },
+    { "from_node": "172.31.90.38", "to_node": "172.31.82.33", "direction": "send", "gbit_s": 9.530011788966310, "duration_s": 60 }
+  ],
+  "nccl_curve": [
+    { "msg_bytes": 1048576, "achieved_bps": 8509005895.14442 },
+    { "msg_bytes": 4194304, "achieved_bps": 15846303757.348486 },
+    { "msg_bytes": 16777216, "achieved_bps": 14261874406.802505 },
+    { "msg_bytes": 67108864, "achieved_bps": 14883281252.425484 },
+    { "msg_bytes": 268435456, "achieved_bps": 14983550538.748339 },
+    { "msg_bytes": 1073741824, "achieved_bps": 14829704862.217632 }
+  ],
+  "shaping_fidelity": [],
+  "burst_decay_detected": false,
+  "burst_decay_curve": [
+    { "t_s": 30.030029, "bps": 9530718994.46277 },
+    { "t_s": 60.029309, "bps": 9529687105.20827 },
+    { "t_s": 90.018495, "bps": 9529363711.8955 },
+    { "t_s": 120.030038, "bps": 9529601754.018326 },
+    { "t_s": 150.002532, "bps": 9529667664.669537 },
+    { "t_s": 180.014488, "bps": 9529366121.15536 },
+    { "t_s": 210.030062, "bps": 9529684644.302305 },
+    { "t_s": 240.030036, "bps": 9529676885.52755 },
+    { "t_s": 270.005513, "bps": 9529488878.011435 },
+    { "t_s": 300.01052, "bps": 9529650835.13199 },
+    { "t_s": 330.001536, "bps": 9529830801.56413 },
+    { "t_s": 360.016491, "bps": 9529671241.23852 },
+    { "t_s": 390.03006, "bps": 9529412782.362934 },
+    { "t_s": 420.010496, "bps": 9529556432.808254 },
+    { "t_s": 450.020501, "bps": 9529495932.11124 },
+    { "t_s": 480.001521, "bps": 9529370918.33765 },
+    { "t_s": 510.030054, "bps": 9529692074.552105 },
+    { "t_s": 540.011504, "bps": 9529444360.2069 },
+    { "t_s": 570.025474, "bps": 9529600036.581404 },
+    { "t_s": 600.030526, "bps": 9529566403.19206 }
+  ],
+  "topology": "4x g6e.2xlarge, 1x NVIDIA L40S per node (single-GPU nodes, no NVLink/peer-to-peer possible). nvidia-smi topo -m per node: 'GPU0  X  CPU Affinity 0-7  NUMA Affinity 0  GPU NUMA ID N/A' -- structurally identical across all 4 GPU nodes, verified on node 172.31.87.8."
+}
