@@ -61,6 +61,14 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/diloco_measured"]
 
+# Required because `dependencies` above pins torchtitan to a git+https URL (a PEP 508
+# "direct reference") rather than a PyPI version -- hatchling refuses to build without this
+# explicit opt-in. Found for real 2026-08-14: `uv sync` against the corrected pyproject.toml
+# failed on every node except the first (where torchft/torchtitan had been installed as
+# separate ad-hoc `uv pip install` calls, never exercising this package's own build step).
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
