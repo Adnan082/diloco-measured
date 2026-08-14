@@ -14,11 +14,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from diloco_measured.analysis.figures import fig1_cu_surface, fig5_bytes_on_wire
+from diloco_measured.analysis.figures import fig1_cu_surface, fig4_cu_vs_h, fig5_bytes_on_wire
 from diloco_measured.analysis.filter import apply as filter_apply
 from diloco_measured.analysis.load import load_run_results
 
-FIGURE_MODULES = ("fig1_cu_surface", "fig5_bytes_on_wire")
+FIGURE_MODULES = ("fig1_cu_surface", "fig4_cu_vs_h", "fig5_bytes_on_wire")
 
 
 def generate_all_figures(
@@ -70,5 +70,29 @@ def generate_all_figures(
             path = output_dir / f"fig5_bytes_on_wire_{algorithm}.png"
             fig5.savefig(path, dpi=150)
             saved["fig5_bytes_on_wire"].append(path)
+
+        # fig4 needs one plot per (algorithm, bandwidth level) found in the corpus — a
+        # single-bandwidth H-sweep (e.g. an unshaped baseline) is exactly the case
+        # fig1_cu_surface can't cover (it needs >=2 bandwidth levels to have an x-axis).
+        bandwidth_levels = sorted(
+            {
+                r["spec"].get("bandwidth_requested_bps")
+                for r in kept
+                if r["spec"].get("phase") == "cu_grid" and r["spec"]["algorithm"] == algorithm
+            },
+            key=lambda v: (v is not None, v),
+        )
+        for bw in bandwidth_levels:
+            try:
+                fig4 = fig4_cu_vs_h.build(
+                    kept, algorithm=algorithm, bandwidth_requested_bps=bw,
+                    harness_version=harness_version,
+                )
+            except ValueError:
+                continue
+            bw_tag = "unshaped" if bw is None else str(bw)
+            path = output_dir / f"fig4_cu_vs_h_{algorithm}_bw{bw_tag}.png"
+            fig4.savefig(path, dpi=150)
+            saved["fig4_cu_vs_h"].append(path)
 
     return saved

@@ -1,0 +1,24 @@
+# 30m-realvocab — torchtitan's own "debugmodel" architecture dims (dim=256, n_layers=6,
+# n_heads=16) with vocab_size overridden to match a real tokenizer (gpt2, 50257) instead of
+# torchtitan's tiny 2048-token debug vocab. Used for the first real training runs in this
+# project (2026-08-14, see CLAUDE.md ADR-034) -- the debugmodel's own architecture is
+# [CONFIRMED] real (ADR-032 validated a real forward+backward pass with it), so only the
+# vocab-dependent fields (vocab_size, tok_embeddings.num_embeddings, lm_head.out_features)
+# needed overriding to train on real language data. Real parameter count with this vocab:
+# 30,846,720 (~30.8M) -- computed by torchtitan's own model.build(), not hand-derived.
+#
+# STATUS: [CONFIRMED] -- this exact config (dim/n_layers/n_heads from model_registry
+# ("debugmodel"), vocab_size=50257) is what actually ran on real GPU hardware; not a
+# planning-stage guess like the 130m/500m/1b configs still are.
+
+[model]
+dim = 256
+n_layers = 6
+n_heads = 16
+n_kv_heads = 16
+vocab_size = 50257
+multiple_of = 256
+tokenizer = "gpt2"
+
+[model.params]
+total = 30846720
