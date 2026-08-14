@@ -5,23 +5,27 @@ description = "Measured, not simulated: a bandwidth-controlled evaluation of sem
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
-# STATUS: [PROPOSED] — dependency set is provisional. §40 Q4 (Docker vs bare metal) is
-# resolved (ADR-020: bare metal). §40 Q2 (torchft/torchtitan pins) has candidate pins below,
-# researched 2026-08-10 — re-verify freshness at Day 0, don't trust them past a few days old.
+# STATUS: [CONFIRMED] — §40 Q2 (torchft/torchtitan pins) validated FOR REAL on live GPU
+# hardware 2026-08-14 (ADR-032): torchft's own DiLoCo test suite passes (8/8) and
+# torchtitan's debugmodel builds + runs a real forward/backward pass on an L40S, exact
+# param-count match to ADR-026. §40 Q4 (Docker vs bare metal) resolved (ADR-020: bare metal).
 # A real lockfile (uv.lock) is still Phase 0 work, not done by scaffolding.
+# REPIN BEFORE THE REAL CAMPAIGN if this tree is more than a few days old — both projects
+# publish continuously (ADR-032 found the torchtitan org had ALSO silently drifted in the
+# other direction from what was assumed: it's pytorch/torchtitan, not meta-pytorch/torchtitan
+# — meta-pytorch/torchtitan 404s. Re-verify the org, not just the SHA, every time).
 dependencies = [
     # measurement/ (needs GPUs + AWS on the actual cluster; importable everywhere for typing/tests)
     "torch>=2.4",
     # torchtitan: pure-Python wheel; PyPI (0.2.2) lags `main` substantially, so pinned to a
-    # `main` SHA instead. e061028 = last commit on `main` as of 2026-08-10 (research date).
-    # STILL RE-VERIFY FRESHNESS immediately before actual cluster bring-up — both projects
-    # publish continuously, so this pin has a shelf life measured in days, not weeks.
-    # "torchtitan @ git+https://github.com/meta-pytorch/torchtitan@e061028",  # ADR-009, pin candidate 2026-08-10
+    # `main` SHA instead. 624c312b67 = last commit on pytorch/torchtitan main as of
+    # 2026-08-14 (ADR-032 validation date) — REAL forward+backward pass verified on an L40S.
+    "torchtitan @ git+https://github.com/pytorch/torchtitan@624c312b67",  # ADR-009/ADR-032
     # torchft: has a Rust extension (maturin/PyO3) — building from a git SHA needs a Rust +
     # protobuf-compiler toolchain on every node, confirmed by trying it (see §40 Q2). Pin the
-    # prebuilt manylinux_x86_64 nightly wheel instead. 2026.8.10 = latest observed build as of
-    # research date — RE-VERIFY at Day 0 the same way (torchft-nightly publishes daily).
-    # "torchft-nightly==2026.8.10",   # §40 Q2, pin candidate 2026-08-10
+    # prebuilt manylinux_x86_64 nightly wheel instead. 2026.8.14 = latest observed build as of
+    # ADR-032's validation date — its own DiLoCo/LocalSGD test suite passes 8/8 on real GPU.
+    "torchft-nightly==2026.8.14",   # §40 Q2/ADR-032
     "pydantic>=2.7",
     "typer>=0.12",
     # analysis/ (must remain GPU-free — see CLAUDE.md §11.2 forbidden edges)

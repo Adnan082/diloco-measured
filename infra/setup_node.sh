@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # setup_node.sh — install pinned deps, lock GPU clocks, mount NVMe, sync dataset shards.
 #
-# STATUS: [PROPOSED] — written against the documented plan (CLAUDE.md §9.1 Journey A, ADR-020
-# bare metal / ADR-024 AMI choice) but UNTESTED: it must run on a real Ubuntu 24.04 EC2 node
-# with an NVIDIA GPU, which does not exist yet (no cluster has been launched). Unlike
-# launch_cluster.sh/teardown.sh/cost_report.sh, which were run for real against this account
-# this session, this script's correctness will only be confirmed on Day 1 (`make smoke`,
-# CLAUDE.md §30.4) — treat every step here as a first draft to debug live, not a validated
-# procedure.
+# STATUS: [CONFIRMED] — run for real on a live 4x g6e.2xlarge + 1x c7i.2xlarge cluster,
+# 2026-08-14 (ADR-032). Steps 1-4 (system packages, deps, GPU clock lock, NVMe mount) all
+# verified clean on real hardware; step 1 (install_system_packages) was ADDED as a direct
+# result of that run finding a real gap (see its own comment). Steps 5-6 (dataset sync,
+# checksum verification) remain unexercised — no S3 bucket/tokenized corpus exists yet.
 #
 # Runs ON each node (invoked via SSH from the operator, or eventually from launch_cluster.sh's
 # bootstrap step — that wiring doesn't exist yet either). Assumes Ubuntu 24.04 (`apt`, not
@@ -28,7 +26,28 @@ log() { echo "[setup_node] $*" >&2; }
 
 log "role=$ROLE"
 
-# ---- 1. Pinned dependencies -------------------------------------------------------------
+# ---- 1. System packages ------------------------------------------------------------------
+# Found for real, 2026-08-14 (ADR-032): torchtitan's default attention backend (FlexAttention)
+# JIT-compiles Triton kernels via torch.compile/Inductor, which shells out to `gcc` to build a
+# small CUDA-launcher C extension that #includes Python.h. Neither the Deep Learning AMI's
+# system Python nor its base package set includes the dev headers, so the FIRST real forward
+# pass fails with "Python.h: No such file or directory" — not a torchtitan or torch bug, a
+# missing system package. Installing it here, once, up front, rather than letting every run
+# hit this the same way.
+install_system_packages() {
+  if [ "$ROLE" != "gpu" ]; then
+    return   # control node never builds/runs a model locally
+  fi
+  if python3 -c "import sysconfig,os; assert os.path.exists(os.path.join(sysconfig.get_path('include'),'Python.h'))" 2>/dev/null; then
+    log "Python.h already present — skipping"
+    return
+  fi
+  log "installing python3-dev + gcc (required for torchtitan's FlexAttention Triton JIT compile, requires sudo)"
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq python3-dev gcc
+}
+
+# ---- 2. Pinned dependencies -------------------------------------------------------------
 # uv.lock does not exist yet (Phase 0 work, CLAUDE.md pyproject.toml's own STATUS comment).
 # Until it does, this installs from pyproject.toml directly — NOT a substitute for a real
 # lockfile (version drift between nodes is exactly what NFR/R15 warns against); this is a
@@ -50,7 +69,7 @@ install_deps() {
   fi
 }
 
-# ---- 2. GPU clock lock (NFR-08) ---------------------------------------------------------
+# ---- 3. GPU clock lock (NFR-08) ---------------------------------------------------------
 lock_gpu_clocks() {
   if [ "$ROLE" != "gpu" ]; then
     log "role=$ROLE — skipping GPU clock lock"
@@ -70,7 +89,7 @@ lock_gpu_clocks() {
   log "GPU clocks locked. Verify with: nvidia-smi -q -d CLOCK | grep -A3 'Clocks$'"
 }
 
-# ---- 3. Local NVMe ------------------------------------------------------------------------
+# ---- 4. Local NVMe ------------------------------------------------------------------------
 # STATUS: [CONFIRMED] on the AMI pinned in launch_cluster.sh (Ubuntu 24.04 Deep Learning AMI)
 # — verified for real on a live g6e.2xlarge, 2026-08-10: that AMI's boot process ALREADY sets
 # up the instance-store NVMe as an LVM volume mounted at /opt/dlami/nvme, writable, ~391GB
@@ -126,7 +145,7 @@ mount_nvme() {
   log "NVMe mounted at $mount_point"
 }
 
-# ---- 4. Dataset sync (S3 -> local NVMe) --------------------------------------------------
+# ---- 5. Dataset sync (S3 -> local NVMe) --------------------------------------------------
 sync_dataset() {
   local bucket="${DILOCO_S3_BUCKET:-}"
   if [ -z "$bucket" ]; then
@@ -140,7 +159,7 @@ sync_dataset() {
   aws s3 sync "s3://$bucket/tokenized/" "$dest" --only-show-errors
 }
 
-# ---- 5. Checksum verification (FR-03 precondition) ---------------------------------------
+# ---- 6. Checksum verification (FR-03 precondition) ---------------------------------------
 verify_checksums() {
   local dest="$mount_point/dataset"
   local manifest="$dest/CHECKSUMS.sha256"
@@ -155,6 +174,7 @@ verify_checksums() {
   log "checksums verified OK"
 }
 
+install_system_packages
 install_deps
 lock_gpu_clocks
 mount_nvme
