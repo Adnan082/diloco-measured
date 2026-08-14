@@ -46,6 +46,11 @@ underperforms the literature's simulated model everywhere tested, and the size o
 itself varies with the operating point rather than being a single constant factor. Full
 writeup: `CLAUDE.md` ADR-035.
 
+The same collapse, isolated to the worst bandwidth level tested (50 Mbit/s) so the `H`-axis
+effect is easier to read on its own:
+
+![Compute utilization vs. H at 50 Mbit/s — measured vs. analytic, DiLoCo](report/assets/fig4_cu_vs_h_diloco_bw50000000.png)
+
 **What this is not yet:** DiLoCo only — no training driver exists yet for DDP/FSDP2/LocalSGD,
 so this is not the full 4-algorithm `phase_a.yaml` comparison. One repeat per point (no
 variance estimate). A 30.8M-parameter model, not the 1B `phase_a.yaml` specifies. See

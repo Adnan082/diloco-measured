@@ -30,10 +30,11 @@ TTTL runs (`G3`). Fault injection (`G7`). Predictor validation (`G4`).
 
 | Date | Cluster-hours | Estimated spend | Running total |
 | --- | --- | --- | --- |
-| 2026-08-14 | ~2.9 hrs × 5 instances (4× `g6e.2xlarge` + 1× `c7i.2xlarge`), `us-east-1b`, at a combined $9.32/hr burn rate | ~$27 (derived from `infra/cost_report.sh`'s burn rate × observed runtime — the exact AWS invoice may differ slightly due to per-second billing rounding and reporting lag) | ~$27 |
+| 2026-08-14 | ~2.9 hrs × 5 instances (4× `g6e.2xlarge` + 1× `c7i.2xlarge`), `us-east-1b`, at a combined $9.32/hr burn rate — unshaped `H`-sweep session | ~$27 (derived from `infra/cost_report.sh`'s burn rate × observed runtime — the exact AWS invoice may differ slightly due to per-second billing rounding and reporting lag) | ~$27 |
+| 2026-08-14/15 | ~1.9 hrs × 5 instances, cluster relaunched (new placement group `pg-0ee059f5ef7da671b`), same `us-east-1b`, same $9.32/hr burn rate — shaped multi-bandwidth grid session | ~$18 | ~$45 |
 
-Cluster terminated 2026-08-14 at the end of this session (`infra/teardown.sh`) — all 5
-instances confirmed `terminated` and the placement group deleted, verified via
+Both clusters terminated at the end of their respective sessions (`infra/teardown.sh`) — all
+instances confirmed `terminated` and each placement group deleted, verified via
 `aws ec2 describe-instances`/`describe-placement-groups` immediately after. Budget ceiling per
 `CLAUDE.md` §5.1 is ~$650–800 for the whole project — this session used a small fraction of it.
 
