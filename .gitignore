@@ -15,6 +15,16 @@ results/figures/*
 !results/figures/.gitkeep
 index.sqlite
 
+# --- Transient orchestration-script working directories (verbose SSH/torchrun console
+# output, incrementally-written per-repeat summaries) -- NOT a canonical data artifact.
+# The canonical artifacts these directories feed are results/raw/*.json (aggregated,
+# schema-valid RunResult records) and experiments/*/raw_step_telemetry*/*.json (clean
+# per-step telemetry) -- both of those ARE committed. This one is scratch space the
+# orchestration scripts write to and the aggregation scripts read from; see
+# experiments/01_cu_grid/run_shaped_grid.py's own OUT_DIR.
+experiments/*/shaped_grid_run_logs/
+experiments/*/*_run_logs/
+
 # --- Notebooks ---
 .ipynb_checkpoints/
 

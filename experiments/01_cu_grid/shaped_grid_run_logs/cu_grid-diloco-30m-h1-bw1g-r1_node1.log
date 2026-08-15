@@ -1,6 +1,0 @@
-step 0: loss=11.0050 outer=True wall_ms=4052.49 compute_ms=2163.26 sync_ms=1877.12
-step 20: loss=8.6061 outer=True wall_ms=1533.26 compute_ms=26.63 sync_ms=1506.37
-step 40: loss=8.5303 outer=True wall_ms=1531.04 compute_ms=26.58 sync_ms=1504.23
-step 60: loss=8.5064 outer=True wall_ms=1533.77 compute_ms=26.61 sync_ms=1506.93
-step 80: loss=8.1689 outer=True wall_ms=1538.88 compute_ms=26.64 sync_ms=1511.98
-RUN_COMPLETE run_id=cu_grid-diloco-30m-h1-bw1g-r1 n_params=30846720 wrote=/home/ubuntu/diloco-measured/grid_out.json
