@@ -1,9 +1,10 @@
 # Results Log
 
 **Status:** `[CONFIRMED]` — the real shaped, multi-bandwidth DiLoCo grid now has 3 repeats/point
-(G1/G2 satisfied) and a real convergence campaign has run (G3 satisfied) — DiLoCo only; the
-DDP/FSDP2/LocalSGD legs of the full `phase_a.yaml`/`phase_b.yaml` comparisons are still not
-built, and G4 (predictor) is still not fitted.
+(G1/G2 satisfied), a real convergence campaign has run (G3 satisfied), and the H-predictor is
+fitted and held-out-validated (G4 satisfied, 0% regret at all 4 tested bandwidth levels) — all
+DiLoCo-only; the DDP/FSDP2/LocalSGD legs of the full `phase_a.yaml`/`phase_b.yaml` comparisons
+are still not built.
 
 This file is the human-readable ledger of every campaign: what ran, what didn't, and why.
 Per `CLAUDE.md` §16.3 and §25, nothing in `results/raw/` is ever edited or deleted — this file
@@ -23,13 +24,14 @@ Do not write a number here that is not backed by a record in `results/raw/`.
 | 2026-08-14/15 | Shaped, multi-bandwidth DiLoCo grid, repeat 0 (`H∈{1,8,32,128} × bw∈{50m,200m,1g,5g}`, `01_cu_grid`) | 0.1.0 | 16 | 16 | 0 | 0 | 0 | ADR-035. Real `tc` shaping + real FR-02 `iperf3` verification gate on every point, 16/16 passed on the first attempt (no retries needed, 0.7–2% error, well under 10% tolerance). Cluster relaunched for this campaign (previous one torn down) — hit and fixed 3 real bugs getting it back up: a stale SG SSH rule, a Git-Bash/MSYS path-mangling bug in the AWS CLI invocation, and an undersized control-node root volume (8GB default, no `--block-device-mappings` — fixed live via `ec2:ModifyVolume`, and fixed in `infra/launch_cluster.sh` for future launches). DiLoCo only, 30.8M-param model (not the 1B `phase_a.yaml` calls for). |
 | 2026-08-15 | Shaped, multi-bandwidth DiLoCo grid, repeats 1 and 2 (same 16 points × 2, `01_cu_grid`) | 0.1.0 | 32 | 32 | 0 | 0 | 0 | ADR-037. Third cluster relaunch this project. Repeat variance tight (< 1.5% spread on typical points). Combined with repeat 0: 48 real runs, satisfying G1's "3 repeats each" for the first time. Also fixed a real biconditional-validator bug found while preparing this campaign (`H==1 iff algorithm=="ddp"` rejected real, already-committed DiLoCo `H=1` data — relaxed to one-directional, ADR-036) and a real accidental-commit of a scratch working directory (`experiments/*/shaped_grid_run_logs/`, fixed same session). |
 | 2026-08-15 | Convergence campaign: single-GPU reference + DiLoCo grid (`H∈{1,8,32,128} × bw∈{unshaped,1g,200m}`, `02_convergence`) | 0.1.0 | 13 (1 reference + 12) | 13 | 0 | 0 | 0 | ADR-037. Single-GPU reference reuses `train_driver.py` unchanged (H set unreachably large so the outer step never fires — verified directly with a smoke test before trusting it). L\*=7.352. **TTTL is `null` for all 12 DiLoCo points — none reached L\* within the 400,000-token budget** (final losses 8.11–8.65 vs. the reference's 7.35). Reported as a real null result, not hidden — see "Null / negative results" below. |
+| 2026-08-15 | H-predictor fit + holdout validation (`05_predictor_validation`, analysis-only, no cluster) | 0.1.0 | n/a (analysis, not a training campaign) | n/a | n/a | n/a | n/a | ADR-038, G4. Fit on the shaped grid's repeats 0+1, validated on repeat 2 (never seen while fitting). `predicted_H == measured_H` at all 4 tested bandwidth levels, 0% regret. A real objective-mismatch bug in the validation code (comparing against "highest holdout tokens/s" instead of `recommend()`'s own CU-threshold rule) was caught by running it against real data before it was ever committed, then fixed. |
 
 **Not yet run:** DDP/FSDP2/LocalSGD legs of `configs/grids/phase_a.yaml`/`phase_b.yaml`'s
-4-algorithm comparisons (no training driver exists for them yet) — both campaigns above are
-DiLoCo only. The 1B model `phase_a.yaml` specifies. More than 1 seed per convergence
-configuration. Fault injection (`G7`). Compression ablation (`G6`). Predictor validation
-(`G4`) — the required-bandwidth table this needs as an input now exists
-(`experiments/01_cu_grid/required_bandwidth_table.json`), but the model has not been fitted.
+4-algorithm comparisons (no training driver exists for them yet) — every real campaign above
+is DiLoCo only. The 1B model `phase_a.yaml` specifies. More than 1 seed per convergence
+configuration. Fault injection (`G7`). Compression ablation (`G6`). A genuinely held-out
+*configuration* for the predictor (what ran was a held-out repeat of the same configs — see
+ADR-038's "Not resolved"). The `diloco-measured plan --probe` CLI surface itself.
 
 ## Cumulative cost
 

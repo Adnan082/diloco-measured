@@ -84,6 +84,24 @@ so this is not the full 4-algorithm `phase_a.yaml` comparison. A 30.8M-parameter
 `experiments/01_cu_grid/NOTES.md`, `experiments/02_convergence/NOTES.md`, and
 ADR-035/ADR-037's "Not resolved" sections for the complete, honest list.
 
+## The H-predictor (G4)
+
+Fit on the shaped grid's repeats 0+1, held-out-validated against repeat 2 (never seen while
+fitting): **`predicted_H == measured_H` at all 4 tested bandwidth levels, 0% regret.**
+
+| Your bandwidth | Recommended H | Expected CU | In calibration domain? |
+| --- | --- | --- | --- |
+| 50 Mbit/s | 128 (best available) | 11.2% | No — target unreachable at any tested H |
+| 200 Mbit/s | 128 (best available) | 35.4% | No — target unreachable at any tested H |
+| 1 Gbit/s | 128 | 71.2% | Yes |
+| 5 Gbit/s | 32 | 67.7% | Yes |
+
+Scoped honestly: calibrated on one model size (30.8M params) and one algorithm (DiLoCo) — the
+`diloco-measured plan --probe` CLI this is meant to power doesn't exist yet, and the held-out
+set here is a held-out *repeat*, not a held-out *configuration*. See
+`experiments/05_predictor_validation/NOTES.md` and ADR-038 for the full picture, including a
+real objective-mismatch bug in the validation code caught before it was ever committed.
+
 ## What's real so far
 
 | Piece | Status |
@@ -95,7 +113,7 @@ ADR-035/ADR-037's "Not resolved" sections for the complete, honest list.
 | **Shaped, multi-bandwidth DiLoCo grid, 3 repeats/point** (48 real runs, G1/G2) | ✅ ADR-035/ADR-037 |
 | **Convergence campaign** (single-GPU reference + 12-point DiLoCo grid, G3) | ✅ ADR-037 |
 | DDP / FSDP2 / LocalSGD drivers (the rest of `phase_a.yaml`'s 4-algorithm comparison) | ⬜ not yet built |
-| H-predictor (G4) | ⬜ not yet fitted |
+| H-predictor (G4) — fitted, held-out-validated (0% regret, 4/4 bandwidth levels) | ✅ ADR-038 |
 | Fault injection (G7), compression ablation (G6) | ⬜ not yet run |
 
 ## What this is
@@ -148,7 +166,7 @@ produces every figure above from the committed `results/raw/` records — nothin
 Phase 2/3 in progress (`CLAUDE.md` v0.1). Network characterization (Phase 1), a real shaped
 multi-bandwidth DiLoCo grid with 3 repeats (G1/G2 — Phase 2/3), and a real convergence campaign
 (G3 — Phase 4) are done and committed, DiLoCo-only. Extending the same grids to
-DDP/FSDP2/LocalSGD and a larger model, plus the H-predictor (G4), are the main remaining work
+DDP/FSDP2/LocalSGD and a larger model are the main remaining work
 toward the full `phase_a.yaml`/`phase_b.yaml` scope. See `CLAUDE.md` §35 for the full phase
 plan and §40 for remaining open questions.
 

@@ -1,0 +1,140 @@
+{
+  "model_id": "diloco-30m-h-predictor-v1",
+  "fitted_at": "2026-08-15T19:19:11.011942+00:00",
+  "training_run_ids": [
+    "cu_grid-diloco-30m-h1-bw1g-r0",
+    "cu_grid-diloco-30m-h1-bw1g-r1",
+    "cu_grid-diloco-30m-h1-bw200m-r0",
+    "cu_grid-diloco-30m-h1-bw200m-r1",
+    "cu_grid-diloco-30m-h1-bw50m-r0",
+    "cu_grid-diloco-30m-h1-bw50m-r1",
+    "cu_grid-diloco-30m-h1-bw5g-r0",
+    "cu_grid-diloco-30m-h1-bw5g-r1",
+    "cu_grid-diloco-30m-h128-bw1g-r0",
+    "cu_grid-diloco-30m-h128-bw1g-r1",
+    "cu_grid-diloco-30m-h128-bw200m-r0",
+    "cu_grid-diloco-30m-h128-bw200m-r1",
+    "cu_grid-diloco-30m-h128-bw50m-r0",
+    "cu_grid-diloco-30m-h128-bw50m-r1",
+    "cu_grid-diloco-30m-h128-bw5g-r0",
+    "cu_grid-diloco-30m-h128-bw5g-r1",
+    "cu_grid-diloco-30m-h32-bw1g-r0",
+    "cu_grid-diloco-30m-h32-bw1g-r1",
+    "cu_grid-diloco-30m-h32-bw200m-r0",
+    "cu_grid-diloco-30m-h32-bw200m-r1",
+    "cu_grid-diloco-30m-h32-bw50m-r0",
+    "cu_grid-diloco-30m-h32-bw50m-r1",
+    "cu_grid-diloco-30m-h32-bw5g-r0",
+    "cu_grid-diloco-30m-h32-bw5g-r1",
+    "cu_grid-diloco-30m-h8-bw1g-r0",
+    "cu_grid-diloco-30m-h8-bw1g-r1",
+    "cu_grid-diloco-30m-h8-bw200m-r0",
+    "cu_grid-diloco-30m-h8-bw200m-r1",
+    "cu_grid-diloco-30m-h8-bw50m-r0",
+    "cu_grid-diloco-30m-h8-bw50m-r1",
+    "cu_grid-diloco-30m-h8-bw5g-r0",
+    "cu_grid-diloco-30m-h8-bw5g-r1"
+  ],
+  "form": "Median-of-repeats interpolation table over a measured (H, bandwidth) grid; log-linear interpolation in bandwidth, discrete lookup in H (only tested H values are ever recommended). bytes_per_hour is analytically derived (ring-all-reduce formula), not measured -- no real wire-byte accounting exists yet (CLAUDE.md FR-05 gap, fig5_bytes_on_wire is empty).",
+  "params": {
+    "table": {
+      "1:1000000000": {
+        "cu_median": 0.01739171204786326,
+        "tokens_per_s_median": 5340.816020369024,
+        "n_repeats": 2
+      },
+      "1:200000000": {
+        "cu_median": 0.0032067594529919534,
+        "tokens_per_s_median": 988.4240779516448,
+        "n_repeats": 2
+      },
+      "1:50000000": {
+        "cu_median": 0.0007050764000511945,
+        "tokens_per_s_median": 217.1586862438362,
+        "n_repeats": 2
+      },
+      "1:5000000000": {
+        "cu_median": 0.07818879634728673,
+        "tokens_per_s_median": 23725.305689968947,
+        "n_repeats": 2
+      },
+      "128:1000000000": {
+        "cu_median": 0.7118705099866081,
+        "tokens_per_s_median": 226597.4446544738,
+        "n_repeats": 2
+      },
+      "128:200000000": {
+        "cu_median": 0.35441259041397055,
+        "tokens_per_s_median": 112638.77583466315,
+        "n_repeats": 2
+      },
+      "128:50000000": {
+        "cu_median": 0.11237493309739187,
+        "tokens_per_s_median": 35834.71305760005,
+        "n_repeats": 2
+      },
+      "128:5000000000": {
+        "cu_median": 0.86518844235312,
+        "tokens_per_s_median": 275438.6457025631,
+        "n_repeats": 2
+      },
+      "32:1000000000": {
+        "cu_median": 0.35792962073277484,
+        "tokens_per_s_median": 114252.58088536654,
+        "n_repeats": 2
+      },
+      "32:200000000": {
+        "cu_median": 0.09815018780458792,
+        "tokens_per_s_median": 31275.750919482274,
+        "n_repeats": 2
+      },
+      "32:50000000": {
+        "cu_median": 0.023557592778039267,
+        "tokens_per_s_median": 7521.727377548448,
+        "n_repeats": 2
+      },
+      "32:5000000000": {
+        "cu_median": 0.6769316098506037,
+        "tokens_per_s_median": 216409.8710013377,
+        "n_repeats": 2
+      },
+      "8:1000000000": {
+        "cu_median": 0.12262900934835208,
+        "tokens_per_s_median": 39191.68824398755,
+        "n_repeats": 2
+      },
+      "8:200000000": {
+        "cu_median": 0.024671872078843013,
+        "tokens_per_s_median": 7923.981989252735,
+        "n_repeats": 2
+      },
+      "8:50000000": {
+        "cu_median": 0.005404323403156969,
+        "tokens_per_s_median": 1735.9756341571733,
+        "n_repeats": 2
+      },
+      "8:5000000000": {
+        "cu_median": 0.39874941117276563,
+        "tokens_per_s_median": 126772.25635631723,
+        "n_repeats": 2
+      }
+    },
+    "n_params": 30846720,
+    "world_size": 4
+  },
+  "calibration_domain": {
+    "bandwidth_bps_range": [
+      50000000.0,
+      5000000000.0
+    ],
+    "model_size_range": [
+      30846720,
+      30846720
+    ],
+    "h_range": [
+      1,
+      128
+    ]
+  },
+  "holdout_validation": null
+}

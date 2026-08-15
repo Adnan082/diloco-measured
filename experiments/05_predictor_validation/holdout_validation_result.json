@@ -1,0 +1,26 @@
+{
+  "per_bandwidth": {
+    "50000000": {
+      "predicted_H": 128,
+      "measured_H": 128,
+      "regret_pct": 0.0
+    },
+    "200000000": {
+      "predicted_H": 128,
+      "measured_H": 128,
+      "regret_pct": 0.0
+    },
+    "1000000000": {
+      "predicted_H": 128,
+      "measured_H": 128,
+      "regret_pct": 0.0
+    },
+    "5000000000": {
+      "predicted_H": 32,
+      "measured_H": 32,
+      "regret_pct": 0.0
+    }
+  },
+  "mean_regret_pct": 0.0,
+  "n_bandwidth_levels": 4
+}
