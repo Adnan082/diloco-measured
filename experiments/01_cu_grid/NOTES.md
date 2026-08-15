@@ -80,10 +80,39 @@ worst at the low-bandwidth/low-H corner. Figure: `results/figures/fig1_cu_surfac
 which no earlier campaign had). All 16 records pass schema validation and step-time
 reconciliation.
 
-**Still not done:** DDP/FSDP2/LocalSGD (no training driver exists for them yet — this grid is
-DiLoCo only, not the full `phase_a.yaml` 4-algorithm comparison). The 1B model
-`phase_a.yaml` specifies (still the 30.8M model, for continuity with the unshaped slice).
-Repeats (§40 Q6) — 1 per point, 16 points, no variance estimate. US-06. The orchestration
-script's cluster config now reads from `DILOCO_NODES`/`DILOCO_SSH_KEY` env vars rather than a
-hardcoded snapshot (fixed before commit, per CLAUDE.md §23's private-IP discipline) — set
-those before re-running against a new cluster.
+**Still not done (as of the first shaped pass above):** DDP/FSDP2/LocalSGD (no training driver
+exists for them yet — this grid is DiLoCo only, not the full `phase_a.yaml` 4-algorithm
+comparison). The 1B model `phase_a.yaml` specifies (still the 30.8M model, for continuity with
+the unshaped slice). Repeats (§40 Q6) — 1 per point, 16 points, no variance estimate. US-06.
+The orchestration script's cluster config now reads from `DILOCO_NODES`/`DILOCO_SSH_KEY` env
+vars rather than a hardcoded snapshot (fixed before commit, per CLAUDE.md §23's private-IP
+discipline) — set those before re-running against a new cluster.
+
+---
+
+## Repeats 1 and 2 — 2026-08-15 (CLAUDE.md ADR-037, G1/G2)
+
+Same 16-point grid, same model, run twice more (cluster relaunched again — new placement
+group, new node IPs — `DILOCO_REPEAT_INDEX=1` then `=2`, `run_shaped_grid.py`'s new env-var
+support). All 32 additional points completed, zero shaping-gate failures, zero crashes. Total
+across all 3 repeats: **48 real runs**, satisfying G1's "3 repeats each" for the first time.
+
+Repeat variance is tight — e.g. `H=32, 5g` `cu_measured`: 0.6810 / 0.6728 / 0.6761 across
+r0/r1/r2 (< 1.5% spread). This is itself informative: the single-repeat point estimates in the
+section above were not noise-dominated.
+
+`experiments/01_cu_grid/compute_required_bandwidth_table.py` (new) answers G2 directly:
+per `H`, the bandwidth needed to reach 50/75/90/95% CU (log-linear interpolation between
+measured bandwidth levels, never extrapolated past 5 Gbit/s — most `H×target` cells are
+honestly `null` since only `H∈{32,128}` reach ≥50% CU within the tested range at all).
+Concrete numbers: `H=32` needs ~2.06 Gbit/s measured (vs. ~1.26 Gbit/s analytic, F≈1.63×) to
+hit 50% CU; `H=128` needs ~394 Mbit/s (vs. ~317 Mbit/s, F≈1.25×) for 50% CU and ~1.55 Gbit/s
+(vs. ~937 Mbit/s, F≈1.66×) for 75% CU. Output: `required_bandwidth_table.json` (regenerable,
+not a primary record — see the script's own docstring for why it doesn't live in
+`results/raw/`).
+
+Figures regenerated from the full 48-run corpus (`fig1_cu_surface_diloco.png` now says "48
+contributing runs" in its caption, median-of-3 rather than a single point estimate).
+
+**Still not done:** everything the first shaped pass's list already said (DDP/FSDP2/LocalSGD,
+1B model, US-06) — repeats close the variance gap, not the breadth gap.
