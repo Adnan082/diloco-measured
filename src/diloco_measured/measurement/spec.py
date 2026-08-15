@@ -27,14 +27,17 @@ class SpecValidationError(ValueError):
 
 def validate_experiment_spec(spec: dict) -> None:
     """Validate `spec` against `experiment_spec.v1.json` AND the documented cross-field
-    invariants (CLAUDE.md §15.2 `ExperimentSpec` entity — status `[PROPOSED]`, no explicit
-    tag was given for these three rules, so per the status-tag legend they are treated as
-    proposed rather than confirmed; they are enforced here as written, not loosened, because
-    softening a documented invariant without the operator's sign-off is exactly the kind of
-    silent change §44 exists to prevent):
+    invariants (CLAUDE.md §15.2 `ExperimentSpec` entity — status `[PROPOSED]`):
 
-      1. `H == 1` iff `algorithm == "ddp"` (a biconditional — H=1 with a non-ddp algorithm is
-         also rejected, not just the reverse).
+      1. `algorithm == "ddp"` requires `H == 1` (one-directional, not a biconditional — see
+         CLAUDE.md ADR-036 for why the reverse direction was dropped: real committed data
+         (ADR-034/035, `results/raw/cu_grid-diloco-*-h1-*`) already uses `algorithm="diloco"`
+         with `H=1` as a deliberate degenerate-case measurement — "what does DiLoCo do if you
+         force it to sync every inner step" — which is a legitimate, already-published
+         configuration, not an error. The original biconditional was written speculatively in
+         Phase 0, before any real run existed to check it against; §44's change-management
+         process is exactly for updating a `[PROPOSED]` rule once real evidence contradicts
+         it, which is what happened here).
       2. `compression` is only valid with `algorithm in {"localsgd", "diloco"}`.
       3. `budget_type == "tokens"` is required when `phase == "convergence"`.
 
@@ -61,13 +64,12 @@ def _check_cross_field_invariants(spec: dict) -> list[str]:
 
     algorithm = spec.get("algorithm")
     H = spec.get("H")
-    if algorithm == "ddp":
-        if H != 1:
-            errors.append(f"algorithm 'ddp' requires H == 1 (got H={H!r})")
-    elif H == 1:
-        errors.append(
-            f"H == 1 is reserved for algorithm 'ddp' (got algorithm={algorithm!r}, H=1)"
-        )
+    if algorithm == "ddp" and H != 1:
+        errors.append(f"algorithm 'ddp' requires H == 1 (got H={H!r})")
+    # NOTE: the reverse (H == 1 implies algorithm == "ddp") is deliberately NOT enforced —
+    # see this function's docstring / CLAUDE.md ADR-036. H=1 with diloco/localsgd is a valid
+    # degenerate-case configuration (sync every inner step) and is already real, committed
+    # data in this project.
 
     compression = spec.get("compression")
     if compression is not None and algorithm not in ("localsgd", "diloco"):

@@ -28,6 +28,11 @@ no automated precondition gate here, and no in-process fingerprinting (that was 
 separately and hand-embedded into `aggregate_shaped_grid.py`). `measurement/train.py::run()`'s
 full FR-03 orchestration (which would take a `Node` list from a real cluster-inventory
 mechanism rather than an env var) is still the intended long-term replacement for this script.
+
+`DILOCO_REPEAT_INDEX` (default `0`) selects which repeat this invocation produces --
+`run_id`s and output paths are suffixed `-r{index}` accordingly, so re-running with index 1,
+then 2, against a (re-)bootstrapped cluster is how CLAUDE.md §40 Q6's repeat requirement (G1:
+"3 repeats each") gets satisfied without ever overwriting an earlier repeat's output.
 """
 
 from __future__ import annotations
@@ -44,6 +49,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from diloco_measured.measurement import netshape  # noqa: E402
 
 KEY_FILE = os.environ.get("DILOCO_SSH_KEY", os.path.expanduser("~/.ssh/diloco-measured-key.pem"))
+REPEAT_INDEX = int(os.environ.get("DILOCO_REPEAT_INDEX", "0"))
 OUT_DIR = Path(__file__).resolve().parent / "shaped_grid_run_logs"
 OUT_DIR.mkdir(exist_ok=True)
 
@@ -142,7 +148,7 @@ def run_one_point(H: int, bw_label: str, bw_bps: int, steps: int, warmup: int) -
     """FR-02's apply -> VERIFY -> (retry once) -> run -> restore sequence, exactly. `restore()`
     runs unconditionally in `finally`, including on the abort path, matching CLAUDE.md §25.3.
     """
-    run_id = f"cu_grid-diloco-30m-h{H}-bw{bw_label}-r0"
+    run_id = f"cu_grid-diloco-30m-h{H}-bw{bw_label}-r{REPEAT_INDEX}"
     print(f"\n=== {run_id} (steps={steps} warmup={warmup}) ===")
 
     handle = netshape.apply(bw_bps, NODES)
@@ -209,15 +215,16 @@ def run_one_point(H: int, bw_label: str, bw_bps: int, steps: int, warmup: int) -
 
 def main() -> None:
     summary = []
+    summary_path = OUT_DIR / f"_summary_r{REPEAT_INDEX}.json"
     for H, bw_label, bw_bps, steps, warmup in GRID:
         point_result = run_one_point(H, bw_label, bw_bps, steps, warmup)
         summary.append(point_result)
         # Written incrementally (not just at the end) so a crash partway through the campaign
         # doesn't lose the points that already completed.
-        (OUT_DIR / "_summary.json").write_text(json.dumps(summary, indent=2))
+        summary_path.write_text(json.dumps(summary, indent=2))
 
     completed = sum(1 for p in summary if p["status"] == "completed")
-    print(f"\n=== GRID DONE: {completed}/{len(GRID)} completed ===")
+    print(f"\n=== GRID DONE (repeat {REPEAT_INDEX}): {completed}/{len(GRID)} completed ===")
     for p in summary:
         print(f"  {p['run_id']}: {p['status']}")
 

@@ -43,10 +43,14 @@ def test_ddp_with_h_equal_one_is_accepted():
 
 
 @pytest.mark.unit
-def test_h_equal_one_reserved_for_ddp_rejects_other_algorithms():
+def test_h_equal_one_with_non_ddp_algorithm_is_accepted():
+    """One-directional rule (CLAUDE.md ADR-036): H=1 is a legitimate degenerate-case
+    configuration for diloco/localsgd (sync every inner step) — real committed data
+    (ADR-034/035) already uses it. Only the reverse direction (ddp requires H==1) is
+    enforced; see test_ddp_with_h_not_equal_one_is_rejected.
+    """
     spec = _base_spec(algorithm="diloco", H=1)
-    with pytest.raises(SpecValidationError, match="reserved for algorithm 'ddp'"):
-        validate_experiment_spec(spec)
+    validate_experiment_spec(spec)  # must not raise
 
 
 @pytest.mark.unit
@@ -88,10 +92,10 @@ def test_schema_violation_is_also_caught():
 
 @pytest.mark.unit
 def test_multiple_violations_are_all_reported_in_one_error():
-    # H==1 with a non-ddp algorithm AND compression on an algorithm that doesn't allow it.
-    spec = _base_spec(algorithm="fsdp2", H=1, compression="fp16")
+    # ddp with H != 1 AND compression on an algorithm that doesn't allow it.
+    spec = _base_spec(algorithm="ddp", H=32, compression="fp16")
     with pytest.raises(SpecValidationError) as exc_info:
         validate_experiment_spec(spec)
     message = str(exc_info.value)
-    assert "reserved for algorithm 'ddp'" in message
+    assert "H == 1" in message
     assert "compression" in message
