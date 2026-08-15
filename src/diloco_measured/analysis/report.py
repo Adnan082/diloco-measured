@@ -14,11 +14,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from diloco_measured.analysis.figures import fig1_cu_surface, fig4_cu_vs_h, fig5_bytes_on_wire
+from diloco_measured.analysis.figures import (
+    fig1_cu_surface,
+    fig3_convergence_curves,
+    fig4_cu_vs_h,
+    fig5_bytes_on_wire,
+)
 from diloco_measured.analysis.filter import apply as filter_apply
 from diloco_measured.analysis.load import load_run_results
 
-FIGURE_MODULES = ("fig1_cu_surface", "fig4_cu_vs_h", "fig5_bytes_on_wire")
+FIGURE_MODULES = (
+    "fig1_cu_surface", "fig3_convergence_curves", "fig4_cu_vs_h", "fig5_bytes_on_wire",
+)
 
 
 def generate_all_figures(
@@ -46,6 +53,16 @@ def generate_all_figures(
 
     algorithms = sorted(
         {r["spec"]["algorithm"] for r in kept if r["spec"].get("phase") == "cu_grid"}
+    )
+    # world_size > 1 only -- the single-GPU reference (world_size==1) is also tagged
+    # algorithm="diloco" (ADR-037) but fig3_convergence_curves.build() finds it on its own
+    # (it's bandwidth-independent, included regardless of which algorithm/bandwidth combo is
+    # being generated); this set is just for iterating the DiLoCo-grid side of the campaign.
+    convergence_algorithms = sorted(
+        {
+            r["spec"]["algorithm"] for r in kept
+            if r["spec"].get("phase") == "convergence" and r["spec"].get("world_size", 1) > 1
+        }
     )
 
     saved: dict[str, list[Path]] = {name: [] for name in FIGURE_MODULES}
@@ -94,5 +111,29 @@ def generate_all_figures(
             path = output_dir / f"fig4_cu_vs_h_{algorithm}_bw{bw_tag}.png"
             fig4.savefig(path, dpi=150)
             saved["fig4_cu_vs_h"].append(path)
+
+    for algorithm in convergence_algorithms:
+        bandwidth_levels = sorted(
+            {
+                r["spec"].get("bandwidth_requested_bps")
+                for r in kept
+                if r["spec"].get("phase") == "convergence"
+                and r["spec"]["algorithm"] == algorithm
+                and r["spec"].get("world_size", 1) > 1
+            },
+            key=lambda v: (v is not None, v),
+        )
+        for bw in bandwidth_levels:
+            try:
+                fig3 = fig3_convergence_curves.build(
+                    kept, algorithm=algorithm, bandwidth_requested_bps=bw,
+                    harness_version=harness_version,
+                )
+            except ValueError:
+                continue
+            bw_tag = "unshaped" if bw is None else str(bw)
+            path = output_dir / f"fig3_convergence_curves_{algorithm}_bw{bw_tag}.png"
+            fig3.savefig(path, dpi=150)
+            saved["fig3_convergence_curves"].append(path)
 
     return saved

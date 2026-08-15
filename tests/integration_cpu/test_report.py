@@ -58,7 +58,10 @@ def test_empty_results_dir_returns_empty_lists_not_an_error(tmp_path):
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
     saved = generate_all_figures(results_dir=empty_dir, output_dir=tmp_path / "out")
-    assert saved == {"fig1_cu_surface": [], "fig4_cu_vs_h": [], "fig5_bytes_on_wire": []}
+    assert saved == {
+        "fig1_cu_surface": [], "fig3_convergence_curves": [],
+        "fig4_cu_vs_h": [], "fig5_bytes_on_wire": [],
+    }
 
 
 @pytest.mark.integration_cpu

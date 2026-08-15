@@ -1,0 +1,350 @@
+{
+  "run_id": "convergence-diloco-30m-h128-bwunshaped",
+  "spec": {
+    "spec_id": "convergence-diloco-30m-h128-bwunshaped",
+    "phase": "convergence",
+    "algorithm": "diloco",
+    "implementation": "reference",
+    "H": 128,
+    "model_config": "30m-realvocab",
+    "world_size": 4,
+    "bandwidth_requested_bps": null,
+    "micro_batch_size": 4,
+    "seq_len": 512,
+    "grad_accum": 1,
+    "budget_type": "tokens",
+    "budget_value": 393216,
+    "warmup_steps": 5,
+    "compression": null,
+    "seed": 42,
+    "repeat_index": 0,
+    "fault_schedule": null
+  },
+  "fingerprint": {
+    "harness_git_sha": "84180a61c6de6b6a13431b3766e642b8161e5ffd",
+    "harness_dirty": false,
+    "harness_version": "0.1.0",
+    "pytorch_version": "2.13.0+cu130",
+    "nccl_version": "2.29.7",
+    "cuda_version": "13.0",
+    "driver_version": "595.71.05",
+    "instance_types": [
+      "g6e.2xlarge"
+    ],
+    "az": "us-east-1b",
+    "gpu_clocks_locked": true,
+    "nccl_env": {
+      "NCCL_SOCKET_IFNAME": "enp39s0"
+    },
+    "kernel_version": "6.17.0-1019-aws",
+    "dataset_shard_checksum": "e1a2eea5c5c8b7a0c0d17c760a8eacf0be6861828332efb6218919b9e70a141e",
+    "seed": 42,
+    "torchtitan_version": "0.2.2"
+  },
+  "shaping": null,
+  "network_profile_id": "phase1-us-east-1b-20260814",
+  "harness_version": "0.1.0",
+  "status": "completed",
+  "started_at": "2026-08-15T15:57:51.558718+00:00",
+  "ended_at": "2026-08-15T15:57:54.916454+00:00",
+  "convergence": {
+    "points": [
+      {
+        "tokens": 8192,
+        "wall_s": 2.152970947265625,
+        "train_loss": 11.004976272583008,
+        "val_loss": null
+      },
+      {
+        "tokens": 16384,
+        "wall_s": 2.1795120983123777,
+        "train_loss": 10.935590744018555,
+        "val_loss": null
+      },
+      {
+        "tokens": 24576,
+        "wall_s": 2.205002017974853,
+        "train_loss": 10.877935409545898,
+        "val_loss": null
+      },
+      {
+        "tokens": 32768,
+        "wall_s": 2.2305055694580074,
+        "train_loss": 10.81799030303955,
+        "val_loss": null
+      },
+      {
+        "tokens": 40960,
+        "wall_s": 2.2560777606964106,
+        "train_loss": 10.75046443939209,
+        "val_loss": null
+      },
+      {
+        "tokens": 49152,
+        "wall_s": 2.2816472644805903,
+        "train_loss": 10.716023445129395,
+        "val_loss": null
+      },
+      {
+        "tokens": 57344,
+        "wall_s": 2.3072016010284417,
+        "train_loss": 10.538987159729004,
+        "val_loss": null
+      },
+      {
+        "tokens": 65536,
+        "wall_s": 2.3340976963043207,
+        "train_loss": 10.440987586975098,
+        "val_loss": null
+      },
+      {
+        "tokens": 73728,
+        "wall_s": 2.360064895629882,
+        "train_loss": 10.325119972229004,
+        "val_loss": null
+      },
+      {
+        "tokens": 81920,
+        "wall_s": 2.3857931194305415,
+        "train_loss": 10.288630485534668,
+        "val_loss": null
+      },
+      {
+        "tokens": 90112,
+        "wall_s": 2.41132188796997,
+        "train_loss": 10.201105117797852,
+        "val_loss": null
+      },
+      {
+        "tokens": 98304,
+        "wall_s": 2.4368279991149895,
+        "train_loss": 9.962519645690918,
+        "val_loss": null
+      },
+      {
+        "tokens": 106496,
+        "wall_s": 2.462339263916015,
+        "train_loss": 9.974555969238281,
+        "val_loss": null
+      },
+      {
+        "tokens": 114688,
+        "wall_s": 2.4878264007568354,
+        "train_loss": 9.766868591308594,
+        "val_loss": null
+      },
+      {
+        "tokens": 122880,
+        "wall_s": 2.5132224960327143,
+        "train_loss": 9.582993507385254,
+        "val_loss": null
+      },
+      {
+        "tokens": 131072,
+        "wall_s": 2.5390431041717525,
+        "train_loss": 9.62749195098877,
+        "val_loss": null
+      },
+      {
+        "tokens": 139264,
+        "wall_s": 2.564634368896484,
+        "train_loss": 9.539405822753906,
+        "val_loss": null
+      },
+      {
+        "tokens": 147456,
+        "wall_s": 2.5900546245574945,
+        "train_loss": 9.337860107421875,
+        "val_loss": null
+      },
+      {
+        "tokens": 155648,
+        "wall_s": 2.6154096012115473,
+        "train_loss": 9.430273056030273,
+        "val_loss": null
+      },
+      {
+        "tokens": 163840,
+        "wall_s": 2.6407950725555414,
+        "train_loss": 9.361401557922363,
+        "val_loss": null
+      },
+      {
+        "tokens": 172032,
+        "wall_s": 2.6661554241180414,
+        "train_loss": 9.190171241760254,
+        "val_loss": null
+      },
+      {
+        "tokens": 180224,
+        "wall_s": 2.691461791992187,
+        "train_loss": 9.128409385681152,
+        "val_loss": null
+      },
+      {
+        "tokens": 188416,
+        "wall_s": 2.7168359680175773,
+        "train_loss": 8.981264114379883,
+        "val_loss": null
+      },
+      {
+        "tokens": 196608,
+        "wall_s": 2.7422102394103995,
+        "train_loss": 8.944602012634277,
+        "val_loss": null
+      },
+      {
+        "tokens": 204800,
+        "wall_s": 2.768252479553222,
+        "train_loss": 8.976482391357422,
+        "val_loss": null
+      },
+      {
+        "tokens": 212992,
+        "wall_s": 2.794455999374389,
+        "train_loss": 8.840130805969238,
+        "val_loss": null
+      },
+      {
+        "tokens": 221184,
+        "wall_s": 2.820195455551147,
+        "train_loss": 9.064959526062012,
+        "val_loss": null
+      },
+      {
+        "tokens": 229376,
+        "wall_s": 2.845794431686401,
+        "train_loss": 8.6279878616333,
+        "val_loss": null
+      },
+      {
+        "tokens": 237568,
+        "wall_s": 2.871191200256347,
+        "train_loss": 8.552325248718262,
+        "val_loss": null
+      },
+      {
+        "tokens": 245760,
+        "wall_s": 2.8966352005004876,
+        "train_loss": 8.497621536254883,
+        "val_loss": null
+      },
+      {
+        "tokens": 253952,
+        "wall_s": 2.922130752563476,
+        "train_loss": 8.614615440368652,
+        "val_loss": null
+      },
+      {
+        "tokens": 262144,
+        "wall_s": 2.9475546894073483,
+        "train_loss": 8.710063934326172,
+        "val_loss": null
+      },
+      {
+        "tokens": 270336,
+        "wall_s": 2.9729048652648924,
+        "train_loss": 8.280384063720703,
+        "val_loss": null
+      },
+      {
+        "tokens": 278528,
+        "wall_s": 2.998215330123901,
+        "train_loss": 8.449382781982422,
+        "val_loss": null
+      },
+      {
+        "tokens": 286720,
+        "wall_s": 3.0236635856628418,
+        "train_loss": 8.42945671081543,
+        "val_loss": null
+      },
+      {
+        "tokens": 294912,
+        "wall_s": 3.0490616970062256,
+        "train_loss": 8.37340259552002,
+        "val_loss": null
+      },
+      {
+        "tokens": 303104,
+        "wall_s": 3.074495168685913,
+        "train_loss": 8.20073413848877,
+        "val_loss": null
+      },
+      {
+        "tokens": 311296,
+        "wall_s": 3.0998645763397215,
+        "train_loss": 8.286581039428711,
+        "val_loss": null
+      },
+      {
+        "tokens": 319488,
+        "wall_s": 3.1251975994110106,
+        "train_loss": 8.21381950378418,
+        "val_loss": null
+      },
+      {
+        "tokens": 327680,
+        "wall_s": 3.150811199188232,
+        "train_loss": 8.09047794342041,
+        "val_loss": null
+      },
+      {
+        "tokens": 335872,
+        "wall_s": 3.176435966491699,
+        "train_loss": 8.232481002807617,
+        "val_loss": null
+      },
+      {
+        "tokens": 344064,
+        "wall_s": 3.2020859184265134,
+        "train_loss": 8.065384864807129,
+        "val_loss": null
+      },
+      {
+        "tokens": 352256,
+        "wall_s": 3.227641757965088,
+        "train_loss": 7.889392852783203,
+        "val_loss": null
+      },
+      {
+        "tokens": 360448,
+        "wall_s": 3.253138813018799,
+        "train_loss": 7.893533706665039,
+        "val_loss": null
+      },
+      {
+        "tokens": 368640,
+        "wall_s": 3.278750524520874,
+        "train_loss": 8.099931716918945,
+        "val_loss": null
+      },
+      {
+        "tokens": 376832,
+        "wall_s": 3.304196668624878,
+        "train_loss": 8.02843189239502,
+        "val_loss": null
+      },
+      {
+        "tokens": 385024,
+        "wall_s": 3.330034044265747,
+        "train_loss": 7.985906600952148,
+        "val_loss": null
+      },
+      {
+        "tokens": 393216,
+        "wall_s": 3.355610204696655,
+        "train_loss": 8.18232250213623,
+        "val_loss": null
+      }
+    ],
+    "target_loss": 7.35219144821167,
+    "tttl_s": null,
+    "tttl_smoothed_s": null,
+    "final_loss": 8.18232250213623,
+    "reached_target": false
+  },
+  "faults": [],
+  "loader_bound_warning": false,
+  "notes": "Convergence campaign, 2026-08-15 (CLAUDE.md ADR-037). H=128, bandwidth=unshaped, token_budget=400000. target_loss (L*) = 7.3522 from the single-GPU reference run at the same token budget. tttl_s is null if this config never reached L* within its token budget -- see reached_target."
+}
