@@ -12,6 +12,13 @@ before publication.
 
 ## Scope limitations
 
+- **DiLoCo only, so far.** All real measurements to date (`CLAUDE.md` ADR-034/035/037) are
+  DiLoCo; DDP, FSDP2, and LocalSGD have no training driver yet. The headline CU-vs-bandwidth
+  and convergence results are therefore not yet a cross-algorithm comparison — that is real
+  remaining work, not a claim already made and hedged.
+- **A 30.8M-parameter model, not the 1B `phase_a.yaml`/`phase_b.yaml` specify.** Chosen for
+  validated-working continuity across sessions (`configs/models/30m-realvocab.toml`); the 1B
+  config's `torchtitan` `Trainer.Config` adapter does not exist yet.
 - **No real WAN emulation.** `tc`/`tbf` shapes bandwidth only — no added latency, jitter, or
   packet loss (TD-3). The measured discrepancy this project reports is therefore a **lower
   bound** on the discrepancy a real, lossy, high-latency WAN would show.
@@ -23,7 +30,17 @@ before publication.
   at frontier scale.
 - **One GPU generation** (NVIDIA L40S, Ada sm89), one cloud (AWS), one region/AZ.
 - **One seed per convergence configuration** (TD-7) — convergence conclusions have not been
-  checked for seed-sensitivity.
+  checked for seed-sensitivity. This is not hypothetical: the real convergence campaign
+  (`CLAUDE.md` ADR-037) found `H=8`'s final loss beat `H=128`'s on the single seed run
+  (8.11 vs. 8.18), the opposite ordering of the CU-grid's H-monotone trend — whether that is a
+  real effect of `H` or seed noise cannot be told apart with 1 seed, and the result is reported
+  as-is rather than resolved into a cleaner story than the data supports.
+- **The convergence campaign's target loss was never reached.** None of the 12 real DiLoCo
+  configurations tested reached the single-GPU reference's loss within the 400,000-token
+  budget (`tttl_s: null` throughout, `CLAUDE.md` ADR-037) — every reported TTTL-adjacent
+  finding from this project so far is therefore about *how far short* configurations fell, not
+  about comparing crossing times. A larger token budget is needed to know whether DiLoCo
+  eventually catches up, and has not been run.
 
 ## Methodological limitations
 

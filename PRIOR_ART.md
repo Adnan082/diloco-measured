@@ -1,8 +1,10 @@
 # Prior Art
 
-**Status:** `[PROPOSED]` — draft skeleton. Per ADR-008 this file must be completed and reviewed
-*before* any measurement code is trusted, and it must be linked from the first screenful of
-`README.md` (US-07).
+**Status:** `[CONFIRMED]` — §1–4 and §6 (the positioning claim, source-by-source table, and the
+project's own history) are complete and now checked against real measured data (`CLAUDE.md`
+ADR-035/037) rather than only planned ones. §5 (adjacent-work literature sweep) remains
+`[UNKNOWN]` — genuinely not done, not claimed as done. Linked from the first screenful of
+`README.md` per US-07.
 
 Its job is narrow: state precisely what is already solved, by whom, and what this repository
 adds on top of it. If a claim here cannot be traced to a source, it does not belong here.
