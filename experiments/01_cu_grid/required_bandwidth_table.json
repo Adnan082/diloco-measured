@@ -1,0 +1,131 @@
+{
+  "1": {
+    "0.50": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.75": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.90": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.95": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    }
+  },
+  "8": {
+    "0.50": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": 4790982893.970288,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.75": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.90": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.95": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    }
+  },
+  "32": {
+    "0.50": {
+      "measured_bw_bps": 2047823496.2134564,
+      "measured_bw_bps_iqr": [
+        2032409716.7106311,
+        2063450493.8732657
+      ],
+      "analytic_bw_bps": 1243228232.7270904,
+      "discrepancy_factor": 1.6471822649341237,
+      "n_repeats": 2
+    },
+    "0.75": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": 3893105123.566547,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.90": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.95": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    }
+  },
+  "128": {
+    "0.50": {
+      "measured_bw_bps": 385221314.03016853,
+      "measured_bw_bps_iqr": [
+        380718633.38491803,
+        389737863.1662342
+      ],
+      "analytic_bw_bps": 310849881.8877601,
+      "discrepancy_factor": 1.2392519234389223,
+      "n_repeats": 2
+    },
+    "0.75": {
+      "measured_bw_bps": 1492212731.501072,
+      "measured_bw_bps_iqr": [
+        1463398951.7479033,
+        1521876171.0681524
+      ],
+      "analytic_bw_bps": 924046172.3217549,
+      "discrepancy_factor": 1.6148681485815193,
+      "n_repeats": 2
+    },
+    "0.90": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": 3364587322.266602,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    },
+    "0.95": {
+      "measured_bw_bps": null,
+      "measured_bw_bps_iqr": null,
+      "analytic_bw_bps": null,
+      "discrepancy_factor": null,
+      "n_repeats": 2
+    }
+  }
+}

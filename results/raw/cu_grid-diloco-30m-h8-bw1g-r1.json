@@ -1,0 +1,83 @@
+{
+  "run_id": "cu_grid-diloco-30m-h8-bw1g-r1",
+  "spec": {
+    "spec_id": "cu_grid-diloco-30m-h8-bw1000000000-r0",
+    "phase": "cu_grid",
+    "algorithm": "diloco",
+    "implementation": "reference",
+    "H": 8,
+    "model_config": "30m-realvocab",
+    "world_size": 4,
+    "bandwidth_requested_bps": 1000000000,
+    "micro_batch_size": 4,
+    "seq_len": 512,
+    "grad_accum": 1,
+    "budget_type": "steps",
+    "budget_value": 150,
+    "warmup_steps": 10,
+    "compression": null,
+    "seed": 42,
+    "repeat_index": 0,
+    "fault_schedule": null
+  },
+  "fingerprint": {
+    "harness_git_sha": "0044e41514c7213e9c4be33023e43aeba62c4f27",
+    "harness_dirty": false,
+    "harness_version": "0.1.0",
+    "pytorch_version": "2.13.0+cu130",
+    "nccl_version": "2.29.7",
+    "cuda_version": "13.0",
+    "driver_version": "595.71.05",
+    "instance_types": [
+      "g6e.2xlarge"
+    ],
+    "az": "us-east-1b",
+    "placement_group_id": "pg-0ee059f5ef7da671b",
+    "gpu_clocks_locked": true,
+    "nccl_env": {
+      "NCCL_SOCKET_IFNAME": "enp39s0"
+    },
+    "kernel_version": "6.17.0-1019-aws",
+    "dataset_shard_checksum": "e1a2eea5c5c8b7a0c0d17c760a8eacf0be6861828332efb6218919b9e70a141e",
+    "seed": 42,
+    "torchtitan_version": "0.2.2"
+  },
+  "shaping": {
+    "requested_bps": 1000000000,
+    "measured_bps": 992664320.199811,
+    "error_pct": 0.7335679800189019,
+    "tolerance_pct": 10.0,
+    "passed": true,
+    "attempts": 1,
+    "iperf_raw": "",
+    "qdisc_dump": ""
+  },
+  "network_profile_id": "phase1-us-east-1b-20260814",
+  "harness_version": "0.1.0",
+  "status": "completed",
+  "started_at": "2026-08-15T14:25:01.616102+00:00",
+  "ended_at": "2026-08-15T14:25:35.168085+00:00",
+  "cu": {
+    "cu_measured": 0.12170857972107768,
+    "cu_analytic_link": 0.16972084832205475,
+    "cu_analytic_achieved": 0.11871425373261048,
+    "nccl_bw_used_bps": 654150190,
+    "nccl_bw_interpolated": false,
+    "discrepancy_link": 1.3944854891167728,
+    "discrepancy_achieved": 0.9753975767745432,
+    "compute_s": 3.557178569793701,
+    "sync_blocked_s": 25.652542684119194,
+    "optimizer_s": 0.0019777280073612928,
+    "loader_stall_s": 0.013651071973145008,
+    "total_s": 29.2270156955719
+  },
+  "throughput": {
+    "tokens_per_s": 39240.40729802463,
+    "step_time_p50_ms": 25.381376266479492,
+    "step_time_p90_ms": 1530.4886474609375,
+    "step_time_p99_ms": 1543.77490234375
+  },
+  "faults": [],
+  "loader_bound_warning": false,
+  "notes": "Shaped bandwidth grid, 2026-08-14 (see CLAUDE.md ADR-035). Bandwidth level '1g' requested=1000000000bps measured=992664320bps (FR-02 gate passed, error=0.73%). Same model/driver/campaign lineage as the unshaped H-sweep (ADR-034), relaunched cluster, same 30.8M-param model, real FineWeb-Edu data. cu_analytic_achieved derived from this run's own measured outer-sync time, not an interpolated NCCL curve (see aggregate_shaped_grid.py docstring for why)."
+}
