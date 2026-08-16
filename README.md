@@ -9,9 +9,11 @@ on Commodity Ethernet.**
 
 **Document status:** `[CONFIRMED]` — a real, shaped, multi-bandwidth compute-utilization grid
 (3 repeats/point) and a real convergence campaign have both run on real GPU hardware
-(2026-08-14/15, see `CLAUDE.md` ADR-035/ADR-037). Every figure and number below is real, not a
-placeholder. Scope: DiLoCo only (no DDP/FSDP2/LocalSGD driver yet), one 30.8M-parameter model.
-See "What's real so far" below for the precise scope and what's still open.
+(2026-08-14/15, see `CLAUDE.md` ADR-035/ADR-037), and the grid is now cross-algorithm: real DDP
+and LocalSGD data join DiLoCo's (2026-08-15/16, ADR-039). Every figure and number below is
+real, not a placeholder. Scope: DDP + DiLoCo + LocalSGD (FSDP2 still not built), one
+30.8M-parameter model. See "What's real so far" below for the precise scope and what's still
+open.
 
 👉 **Read [`PRIOR_ART.md`](PRIOR_ART.md) first.** It states exactly what is and is not novel here.
 
@@ -78,11 +80,12 @@ wall-clock time (9s vs. 76s vs. 399s for the same `H=1` sweep) but not the train
 itself, since it doesn't change the sequence of optimizer updates. *Why* DiLoCo converged
 slower per-token than plain AdamW here is an open question this campaign doesn't resolve.
 
-**What this is not yet:** DiLoCo only — no training driver exists yet for DDP/FSDP2/LocalSGD,
-so this is not the full 4-algorithm `phase_a.yaml` comparison. A 30.8M-parameter model, not the
-1B `phase_a.yaml` specifies. One seed per convergence configuration. See
+**What this convergence campaign is not yet:** DiLoCo only — the DDP/LocalSGD *CU grid* now
+exists (ADR-039), but neither has run a convergence campaign yet, so this is not the full
+4-algorithm comparison, and FSDP2 has no driver at all. A 30.8M-parameter model, not the 1B
+`phase_a.yaml` specifies. One seed per convergence configuration. See
 `experiments/01_cu_grid/NOTES.md`, `experiments/02_convergence/NOTES.md`, and
-ADR-035/ADR-037's "Not resolved" sections for the complete, honest list.
+ADR-035/ADR-037/ADR-039's "Not resolved" sections for the complete, honest list.
 
 ## The H-predictor (G4)
 
@@ -102,6 +105,39 @@ set here is a held-out *repeat*, not a held-out *configuration*. See
 `experiments/05_predictor_validation/NOTES.md` and ADR-038 for the full picture, including a
 real objective-mismatch bug in the validation code caught before it was ever committed.
 
+## Cross-algorithm comparison: DDP and LocalSGD (ADR-039)
+
+The CU grid is cross-algorithm for the first time. Real DDP (bandwidth only — `H=1` by
+definition, no amortization possible at all) and real LocalSGD (same `H × bandwidth` grid as
+DiLoCo, the "no outer optimizer" ablation — plain parameter averaging instead of a
+pseudo-gradient + Nesterov-SGD outer step) both ran to completion, zero shaping-gate failures,
+zero crashes, 21 real runs total:
+
+![Compute utilization vs. bandwidth — measured vs. analytic, DDP](report/assets/fig1_cu_surface_ddp.png)
+
+DDP collapses to near-total idleness under bandwidth scarcity — `cu_measured` 16.68% unshaped
+→ **0.04% at 50 Mbit/s** — and lands roughly **two orders of magnitude below both analytic
+predictions** at every shaped level (16.57% predicted vs. 0.04% measured at 50 Mbit/s). Without
+any `H`-amortization to fall back on, the naive literature model doesn't just slightly overstate
+DDP's viability under scarcity, it overstates it dramatically.
+
+LocalSGD vs. DiLoCo (`cu_measured`, all 16 points) — directly comparable for the first time:
+
+| H | Algo | 50 Mbit/s | 200 Mbit/s | 1 Gbit/s | 5 Gbit/s |
+| --- | --- | --- | --- | --- | --- |
+| 1 | DiLoCo / LocalSGD | 0.07% / 0.07% | 0.32% / 0.31% | 1.74% / 1.69% | 7.76% / 7.61% |
+| 8 | DiLoCo / LocalSGD | 0.55% / 0.52% | 2.48% / 2.40% | 12.35% / 11.83% | 40.24% / 38.65% |
+| 32 | DiLoCo / LocalSGD | 2.41% / 2.30% | 10.01% / 9.36% | 36.01% / 33.65% | 68.10% / 62.57% |
+| 128 | DiLoCo / LocalSGD | 11.55% / 10.81% | 36.09% / 33.46% | 71.52% / 65.56% | 87.00% / 80.72% |
+
+LocalSGD tracks DiLoCo closely at low `H` (within ~0.15 percentage points) and reads a few
+points lower at high `H` — both move identical bytes per round at identical cadence, so this
+isn't a communication-volume difference; plausibly the outer Nesterov-SGD step's own small
+compute cost, though a single repeat per point can't distinguish that from ordinary variance
+yet. Two real bugs were found and fixed getting this data (a DDP calibration-probe Triton-JIT
+contamination issue, and a grid-orchestration timeout that would have silently lost the entire
+LocalSGD half of the campaign) — see `CLAUDE.md` ADR-039 for both.
+
 ## What's real so far
 
 | Piece | Status |
@@ -112,8 +148,10 @@ real objective-mismatch bug in the validation code caught before it was ever com
 | Real FineWeb-Edu data, gpt2-tokenized, staged per-node | ✅ ADR-034 |
 | **Shaped, multi-bandwidth DiLoCo grid, 3 repeats/point** (48 real runs, G1/G2) | ✅ ADR-035/ADR-037 |
 | **Convergence campaign** (single-GPU reference + 12-point DiLoCo grid, G3) | ✅ ADR-037 |
-| DDP / FSDP2 / LocalSGD drivers (the rest of `phase_a.yaml`'s 4-algorithm comparison) | ⬜ not yet built |
+| **DDP grid** (5 points, bandwidth only) + **LocalSGD grid** (16 points, same `H×bandwidth` as DiLoCo) | ✅ ADR-039 (21 real runs, 1 repeat/point) |
+| FSDP2 driver (the remaining leg of `phase_a.yaml`'s 4-algorithm comparison) | ⬜ not yet built |
 | H-predictor (G4) — fitted, held-out-validated (0% regret, 4/4 bandwidth levels) | ✅ ADR-038 |
+| `/proc/net/dev` wire-byte accounting in any training driver (`fig5_bytes_on_wire`) | ⬜ never wired in — empty for every algorithm |
 | Fault injection (G7), compression ablation (G6) | ⬜ not yet run |
 
 ## What this is
@@ -164,11 +202,12 @@ produces every figure above from the committed `results/raw/` records — nothin
 ## Status
 
 Phase 2/3 in progress (`CLAUDE.md` v0.1). Network characterization (Phase 1), a real shaped
-multi-bandwidth DiLoCo grid with 3 repeats (G1/G2 — Phase 2/3), and a real convergence campaign
-(G3 — Phase 4) are done and committed, DiLoCo-only. Extending the same grids to
-DDP/FSDP2/LocalSGD and a larger model are the main remaining work
-toward the full `phase_a.yaml`/`phase_b.yaml` scope. See `CLAUDE.md` §35 for the full phase
-plan and §40 for remaining open questions.
+multi-bandwidth DiLoCo grid with 3 repeats (G1/G2 — Phase 2/3), a real convergence campaign
+(G3 — Phase 4), and real DDP + LocalSGD CU grids (ADR-039) are done and committed. A FSDP2
+driver, a DDP/LocalSGD convergence campaign, repeats for the DDP/LocalSGD grids, a larger
+model, and `/proc/net/dev` wire-byte accounting are the main remaining work toward the full
+`phase_a.yaml`/`phase_b.yaml` scope. See `CLAUDE.md` §35 for the full phase plan and §40 for
+remaining open questions.
 
 ## License
 

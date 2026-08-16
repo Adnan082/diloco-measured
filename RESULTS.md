@@ -2,9 +2,10 @@
 
 **Status:** `[CONFIRMED]` — the real shaped, multi-bandwidth DiLoCo grid now has 3 repeats/point
 (G1/G2 satisfied), a real convergence campaign has run (G3 satisfied), and the H-predictor is
-fitted and held-out-validated (G4 satisfied, 0% regret at all 4 tested bandwidth levels) — all
-DiLoCo-only; the DDP/FSDP2/LocalSGD legs of the full `phase_a.yaml`/`phase_b.yaml` comparisons
-are still not built.
+fitted and held-out-validated (G4 satisfied, 0% regret at all 4 tested bandwidth levels). The
+CU grid is now cross-algorithm for the first time: real DDP and LocalSGD grids (21 runs, ADR-039)
+join DiLoCo's. FSDP2 is still not built, and DDP/LocalSGD have 1 repeat/point (no variance
+estimate yet) — see ADR-039's "Not resolved."
 
 This file is the human-readable ledger of every campaign: what ran, what didn't, and why.
 Per `CLAUDE.md` §16.3 and §25, nothing in `results/raw/` is ever edited or deleted — this file
@@ -25,13 +26,16 @@ Do not write a number here that is not backed by a record in `results/raw/`.
 | 2026-08-15 | Shaped, multi-bandwidth DiLoCo grid, repeats 1 and 2 (same 16 points × 2, `01_cu_grid`) | 0.1.0 | 32 | 32 | 0 | 0 | 0 | ADR-037. Third cluster relaunch this project. Repeat variance tight (< 1.5% spread on typical points). Combined with repeat 0: 48 real runs, satisfying G1's "3 repeats each" for the first time. Also fixed a real biconditional-validator bug found while preparing this campaign (`H==1 iff algorithm=="ddp"` rejected real, already-committed DiLoCo `H=1` data — relaxed to one-directional, ADR-036) and a real accidental-commit of a scratch working directory (`experiments/*/shaped_grid_run_logs/`, fixed same session). |
 | 2026-08-15 | Convergence campaign: single-GPU reference + DiLoCo grid (`H∈{1,8,32,128} × bw∈{unshaped,1g,200m}`, `02_convergence`) | 0.1.0 | 13 (1 reference + 12) | 13 | 0 | 0 | 0 | ADR-037. Single-GPU reference reuses `train_driver.py` unchanged (H set unreachably large so the outer step never fires — verified directly with a smoke test before trusting it). L\*=7.352. **TTTL is `null` for all 12 DiLoCo points — none reached L\* within the 400,000-token budget** (final losses 8.11–8.65 vs. the reference's 7.35). Reported as a real null result, not hidden — see "Null / negative results" below. |
 | 2026-08-15 | H-predictor fit + holdout validation (`05_predictor_validation`, analysis-only, no cluster) | 0.1.0 | n/a (analysis, not a training campaign) | n/a | n/a | n/a | n/a | ADR-038, G4. Fit on the shaped grid's repeats 0+1, validated on repeat 2 (never seen while fitting). `predicted_H == measured_H` at all 4 tested bandwidth levels, 0% regret. A real objective-mismatch bug in the validation code (comparing against "highest holdout tokens/s" instead of `recommend()`'s own CU-threshold rule) was caught by running it against real data before it was ever committed, then fixed. |
+| 2026-08-15/16 | Real DDP grid (bandwidth only, H=1, `01_cu_grid`) | 0.1.0 | 5 | 5 | 0 | 0 | 0 | ADR-039. Cross-algorithm for the first time. Two real Triton-JIT-contamination bugs found and fixed in the calibration-probe methodology (DDP overlaps its all-reduce with `backward()`, so compute/sync is an imputed split, not a direct measurement) — the entire grid was discarded and re-run from scratch once found. `cu_measured` collapses to 0.04% at 50 Mbit/s, ~2 orders of magnitude below the naive analytic prediction. |
+| 2026-08-15/16 | Real LocalSGD grid (`H∈{1,8,32,128} × bw∈{50m,200m,1g,5g}`, `01_cu_grid`) | 0.1.0 | 16 | 16 | 0 | 0 | 0 | ADR-039. The no-outer-optimizer ablation against DiLoCo, directly comparable for the first time — tracks DiLoCo's existing numbers within ~0.15pp at low H, a few points lower at high H. A real orchestration robustness bug (an uncaught SSH-teardown timeout that would have crashed the campaign before any of these 16 points ran) was found and fixed mid-campaign — see ADR-039. |
 
-**Not yet run:** DDP/FSDP2/LocalSGD legs of `configs/grids/phase_a.yaml`/`phase_b.yaml`'s
-4-algorithm comparisons (no training driver exists for them yet) — every real campaign above
-is DiLoCo only. The 1B model `phase_a.yaml` specifies. More than 1 seed per convergence
-configuration. Fault injection (`G7`). Compression ablation (`G6`). A genuinely held-out
-*configuration* for the predictor (what ran was a held-out repeat of the same configs — see
-ADR-038's "Not resolved"). The `diloco-measured plan --probe` CLI surface itself.
+**Not yet run:** FSDP2 leg of `configs/grids/phase_a.yaml`/`phase_b.yaml`'s 4-algorithm
+comparisons (no training driver exists for it yet). The 1B model `phase_a.yaml` specifies.
+More than 1 seed per DDP/LocalSGD grid point or per convergence configuration. Fault injection
+(`G7`). Compression ablation (`G6`). A genuinely held-out *configuration* for the predictor
+(what ran was a held-out repeat of the same configs — see ADR-038's "Not resolved"). The
+`diloco-measured plan --probe` CLI surface itself. `/proc/net/dev` wire-byte accounting in any
+training driver (`fig5_bytes_on_wire` remains empty for every algorithm — ADR-038/039).
 
 ## Cumulative cost
 
@@ -68,10 +72,10 @@ trend. With only 1 seed per configuration (§40 Q6/TD-7), whether that ordering 
 or seed noise is not distinguishable from this campaign alone — stated honestly, not resolved
 into a cleaner story than the data supports.
 
-All other runs across every campaign so far (65 training runs total: 4 unshaped + 48 shaped
-CU-grid + 13 convergence, the last of which includes the single-GPU reference) and the network
-characterization completed successfully, with zero shaping-gate aborts and zero crashes. The
-CU-grid headline finding itself (measured CU below the naive analytic prediction at every
-shaped point, ADR-035/037) is not a null result, but it is the falsification-committed-in-
-advance direction: see `CLAUDE.md` §2.7 for why either direction was pre-declared as a
-reportable outcome.
+All other runs across every campaign so far (86 training runs total: 4 unshaped DiLoCo + 48
+shaped DiLoCo CU-grid + 13 convergence (incl. the single-GPU reference) + 5 DDP + 16 LocalSGD)
+and the network characterization completed successfully, with zero shaping-gate aborts and
+zero crashes. The CU-grid headline finding itself (measured CU below the naive analytic
+prediction at every shaped point, across all three algorithms now tested — ADR-035/037/039) is
+not a null result, but it is the falsification-committed-in-advance direction: see `CLAUDE.md`
+§2.7 for why either direction was pre-declared as a reportable outcome.

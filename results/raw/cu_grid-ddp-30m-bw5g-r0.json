@@ -1,0 +1,74 @@
+{
+  "run_id": "cu_grid-ddp-30m-bw5g-r0",
+  "spec": {
+    "spec_id": "cu_grid-ddp-30m-bw5g-r0",
+    "phase": "cu_grid",
+    "algorithm": "ddp",
+    "implementation": "reference",
+    "H": 1,
+    "model_config": "30m-realvocab",
+    "world_size": 4,
+    "bandwidth_requested_bps": 5000000000,
+    "micro_batch_size": 4,
+    "seq_len": 512,
+    "grad_accum": 1,
+    "budget_type": "steps",
+    "budget_value": 100,
+    "warmup_steps": 5,
+    "compression": null,
+    "seed": 42,
+    "repeat_index": 0,
+    "fault_schedule": null
+  },
+  "fingerprint": {
+    "harness_git_sha": "c6d8889d96850246778deb8efa724d73c569b964",
+    "harness_dirty": false,
+    "harness_version": "0.1.0",
+    "pytorch_version": "2.13.0+cu130",
+    "nccl_version": "2.29.7",
+    "cuda_version": "13.0",
+    "driver_version": "595.71.05",
+    "instance_types": [
+      "g6e.2xlarge"
+    ],
+    "az": "us-east-1b",
+    "placement_group_id": "pg-0f8e8774a16b3b7e7",
+    "gpu_clocks_locked": true,
+    "nccl_env": {
+      "NCCL_SOCKET_IFNAME": "enp39s0"
+    },
+    "kernel_version": "6.17.0-1019-aws",
+    "dataset_shard_checksum": "e1a2eea5c5c8b7a0c0d17c760a8eacf0be6861828332efb6218919b9e70a141e",
+    "seed": 42,
+    "torchtitan_version": "0.2.2"
+  },
+  "shaping": null,
+  "network_profile_id": "phase1-us-east-1b-20260814",
+  "harness_version": "0.1.0",
+  "status": "completed",
+  "started_at": "2026-08-16T19:03:35.506467+00:00",
+  "ended_at": "2026-08-16T19:04:17.563654+00:00",
+  "cu": {
+    "cu_measured": 0.052819091686948455,
+    "cu_analytic_link": 0.17635748044436483,
+    "cu_analytic_achieved": 0.2509494543708261,
+    "nccl_bw_used_bps": 14911310120,
+    "nccl_bw_interpolated": true,
+    "discrepancy_link": 3.338896501469801,
+    "discrepancy_achieved": 4.751112644234196,
+    "compute_s": 2.1068902015686035,
+    "sync_blocked_s": 37.30633279037475,
+    "optimizer_s": 0.43160294485092165,
+    "loader_stall_s": 0.012590783968567849,
+    "total_s": 39.88880032348633
+  },
+  "throughput": {
+    "tokens_per_s": 19510.238304704693,
+    "step_time_p50_ms": 419.9927062988281,
+    "step_time_p90_ms": 422.76885986328125,
+    "step_time_p99_ms": 427.28411865234375
+  },
+  "faults": [],
+  "loader_bound_warning": false,
+  "notes": "Real DDP training, 2026-08-16 grid (see CLAUDE.md ADR for this campaign). H=1 by definition (syncs every step). IMPORTANT: cu.compute_s/cu.sync_blocked_s here are an IMPUTED split, not two independent direct measurements -- DDP overlaps its all-reduce with backward() by design, so `train_driver_ddp.py` uses a calibration-probe methodology (median of 3 no_sync() compute-only samples taken during warmup; per-step compute_ms=min(baseline,synced_backward_ms), sync_ms=max(0,synced_backward_ms-baseline)). Two real Triton-JIT-contamination bugs in this probe were found and fixed on real hardware before this grid ran (see git history). Bandwidth level '5g' (unshaped, no tc shaping applied)."
+}

@@ -1,0 +1,83 @@
+{
+  "run_id": "cu_grid-localsgd-30m-h8-bw5g-r0",
+  "spec": {
+    "spec_id": "cu_grid-localsgd-30m-h8-bw5g-r0",
+    "phase": "cu_grid",
+    "algorithm": "localsgd",
+    "implementation": "reference",
+    "H": 8,
+    "model_config": "30m-realvocab",
+    "world_size": 4,
+    "bandwidth_requested_bps": 5000000000,
+    "micro_batch_size": 4,
+    "seq_len": 512,
+    "grad_accum": 1,
+    "budget_type": "steps",
+    "budget_value": 150,
+    "warmup_steps": 10,
+    "compression": null,
+    "seed": 42,
+    "repeat_index": 0,
+    "fault_schedule": null
+  },
+  "fingerprint": {
+    "harness_git_sha": "c6d8889d96850246778deb8efa724d73c569b964",
+    "harness_dirty": false,
+    "harness_version": "0.1.0",
+    "pytorch_version": "2.13.0+cu130",
+    "nccl_version": "2.29.7",
+    "cuda_version": "13.0",
+    "driver_version": "595.71.05",
+    "instance_types": [
+      "g6e.2xlarge"
+    ],
+    "az": "us-east-1b",
+    "placement_group_id": "pg-0f8e8774a16b3b7e7",
+    "gpu_clocks_locked": true,
+    "nccl_env": {
+      "NCCL_SOCKET_IFNAME": "enp39s0"
+    },
+    "kernel_version": "6.17.0-1019-aws",
+    "dataset_shard_checksum": "e1a2eea5c5c8b7a0c0d17c760a8eacf0be6861828332efb6218919b9e70a141e",
+    "seed": 42,
+    "torchtitan_version": "0.2.2"
+  },
+  "shaping": {
+    "requested_bps": 5000000000,
+    "measured_bps": 4963590159.39185,
+    "error_pct": 0.7281968121629906,
+    "tolerance_pct": 10.0,
+    "passed": true,
+    "attempts": 1,
+    "iperf_raw": "",
+    "qdisc_dump": ""
+  },
+  "network_profile_id": "phase1-us-east-1b-20260814",
+  "harness_version": "0.1.0",
+  "status": "completed",
+  "started_at": "2026-08-16T20:19:18.055231+00:00",
+  "ended_at": "2026-08-16T20:19:30.397593+00:00",
+  "cu": {
+    "cu_measured": 0.38649800719509836,
+    "cu_analytic_link": 0.4978913693213292,
+    "cu_analytic_achieved": 0.3804111001226409,
+    "nccl_bw_used_bps": 3073325472,
+    "nccl_bw_interpolated": false,
+    "discrepancy_link": 1.2882119960582388,
+    "discrepancy_achieved": 0.9842511294776615,
+    "compute_s": 3.450944820404053,
+    "sync_blocked_s": 5.4600841430872675,
+    "optimizer_s": 0.0020259839994832872,
+    "loader_stall_s": 0.013953343905508519,
+    "total_s": 8.92875191116333
+  },
+  "throughput": {
+    "tokens_per_s": 128447.96354640485,
+    "step_time_p50_ms": 24.63580894470215,
+    "step_time_p90_ms": 343.6046142578125,
+    "step_time_p99_ms": 349.1505432128906
+  },
+  "faults": [],
+  "loader_bound_warning": false,
+  "notes": "Real LocalSGD training, 2026-08-16 grid (see CLAUDE.md ADR for this campaign). No-outer-optimizer ablation against DiLoCo -- parameter averaging every H steps (LocalSGDTrainer, measurement/localsgd.py), no pseudo-gradient/Nesterov outer step. sync_blocked_ms is a DIRECT StepTimer measurement (explicit outer all-reduce), not imputed. Bandwidth level '5g' requested=5000000000bps measured=4963590159bps (FR-02 gate passed, error=0.73%)."
+}

@@ -116,3 +116,49 @@ contributing runs" in its caption, median-of-3 rather than a single point estima
 
 **Still not done:** everything the first shaped pass's list already said (DDP/FSDP2/LocalSGD,
 1B model, US-06) — repeats close the variance gap, not the breadth gap.
+
+---
+
+## DDP + LocalSGD grids — 2026-08-15/16 (CLAUDE.md ADR-039)
+
+Cluster relaunched again (new placement group `pg-0f8e8774a16b3b7e7`, same `us-east-1b`,
+same instance types). Two new training drivers (`train_driver_ddp.py`, `train_driver_
+localsgd.py`) plus a new reference `LocalSGDTrainer` (`measurement/localsgd.py`) — the CU
+grid becomes cross-algorithm for the first time. 5 DDP points (bandwidth only, H=1 by
+definition) + 16 LocalSGD points (same H×bandwidth grid as DiLoCo's), all 21 completed,
+zero shaping-gate failures, zero crashes.
+
+**Two real bugs in the DDP calibration probe, both found on live hardware and fixed before
+any grid data was trusted** (see ADR-039 for the full mechanism): Triton JIT compilation
+contaminating first the synced-path warmup, then — after that fix shipped and the *entire*
+5-point grid completed — the `no_sync()` path's *separate* JIT compilation, discovered because
+every single point still showed the same outlier signature. The whole DDP grid was thrown
+away and re-run from scratch under the fixed driver; nothing collected under the buggy
+calibration ever reached `results/raw/`.
+
+**One real orchestration bug**, also found live: the grid script's sequential per-node
+`proc.wait(timeout=...)` had no exception handling, so when the 50 Mbit/s DDP point's rank-0
+SSH session didn't return in time, the uncaught `TimeoutExpired` crashed the whole campaign —
+at that moment all 16 LocalSGD points hadn't started yet. Investigation found the training
+had actually finished cleanly (792.7s, all 15 steps, valid output already on disk) — the hang
+was in post-training teardown, not training itself. Recovered that point's result by hand,
+then hardened the orchestrator (shared-deadline polling, force-kill stragglers, always attempt
+result fetch regardless of clean ssh exit, resume-awareness, defensive process cleanup between
+every point). The fixed orchestrator then ran the rest of the campaign with zero further
+timeouts.
+
+**Headline finding:** DDP (no H-amortization at all) collapses to near-total idleness under
+scarcity — `cu_measured` 16.68% unshaped → 0.04% at 50 Mbit/s — and lands dramatically below
+*both* analytic predictions at every shaped level (~2 orders of magnitude below the naive
+model at 50 Mbit/s). LocalSGD tracks DiLoCo's existing H×bandwidth numbers closely (within
+~0.15pp at low H, a few points lower at high H) — the first real, direct comparison of the
+"no outer optimizer" ablation against DiLoCo's pseudo-gradient+Nesterov design.
+
+Figure generation needed **zero code changes** — `analysis/report.py` already discovers
+algorithms dynamically from the corpus (ADR-029's design held up under real multi-algorithm
+data for the first time). `fig5_bytes_on_wire_*` remains empty for every algorithm (already
+flagged at ADR-038 — `wire` has never been populated by any driver, pre-existing debt, not
+new).
+
+**Still not done:** FSDP2 (not started this session). 1B model. Repeats (1 per point, both
+algorithms — no variance estimate yet). US-06. `wire` accounting in any driver.

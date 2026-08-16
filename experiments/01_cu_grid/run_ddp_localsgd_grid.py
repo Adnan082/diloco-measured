@@ -148,13 +148,74 @@ def fetch_result(run_id: str) -> dict | None:
     return None
 
 
+def force_cleanup_remote() -> None:
+    """Kill any leftover torchrun/train_driver processes on every node. Real bug found
+    2026-08-16 (ADR pending): at extreme bandwidth scarcity (50 Mbit/s), the training loop
+    itself completes and writes its output file well within budget, but `dist.destroy_process_
+    group()` / the torchrun elastic agent's own rendezvous-shutdown handshake can hang for
+    much longer than the training itself took -- the exact mechanism wasn't chased down further
+    (recovering the already-complete result and moving on was the higher-value use of cluster
+    time), but it reproduces specifically at the lowest shaped bandwidths, which is consistent
+    with the shutdown handshake itself being subject to the same tc shaping as training traffic.
+    Called unconditionally between grid points so a hung teardown from one point can never block
+    or corrupt the next point's rendezvous on the same port."""
+    for node in NODES:
+        netshape.ssh_run(
+            node, ["pkill", "-9", "-f", "train_driver_ddp.py|train_driver_localsgd.py"],
+            timeout_s=10,
+        )
+        netshape.ssh_run(node, ["pkill", "-9", "-f", "torchrun"], timeout_s=10)
+
+
+def wait_for_procs_or_recover(
+    procs: list[subprocess.Popen], run_id: str, max_wait_s: float
+) -> bool:
+    """Poll all procs against ONE shared deadline (not `max_wait_s` per proc -- the original
+    sequential `proc.wait(timeout=...)` loop gave the first proc the full budget and, on timeout,
+    raised immediately, uncaught, which crashed the entire campaign and lost every subsequent
+    grid point including all 16 LocalSGD points that hadn't even started yet. Real incident:
+    2026-08-16, cu_grid-ddp-30m-bw50m-r0 -- the remote training had already finished (792.7s,
+    all 15 steps, valid output file) well inside the old 1500s budget, but at least one rank's
+    ssh session never returned, so the crash lost work that was already sitting on disk.
+    Returns True if every proc exited on its own before the deadline; False if any had to be
+    force-killed (the caller must still attempt fetch_result -- a hung teardown after a
+    completed run is exactly the case this function exists to survive)."""
+    deadline = time.time() + max_wait_s
+    while time.time() < deadline and any(p.poll() is None for p in procs):
+        time.sleep(5)
+    all_clean = all(p.poll() is not None for p in procs)
+    for i, proc in enumerate(procs):
+        if proc.poll() is None:
+            print(f"  WARNING: node{i} ssh session still running after {max_wait_s:.0f}s "
+                  f"deadline -- killing it and checking for a completed output file anyway")
+            proc.kill()
+            proc.wait(timeout=10)
+        elif proc.returncode != 0:
+            print(f"  WARNING: node{i} ssh/torchrun exited {proc.returncode} (see log)")
+    return all_clean
+
+
 def run_one_point(
-    launch_fn, run_id: str, bw_label: str, bw_bps: int | None
+    launch_fn, run_id: str, bw_label: str, bw_bps: int | None, max_wait_s: float = 2400
 ) -> dict:
     """FR-02's apply -> VERIFY -> (retry once) -> run -> restore sequence. `launch_fn` is
     called with no arguments (a closure capturing whatever per-point args it needs) and must
     return the list of Popen procs.
+
+    Resume-aware: if `run_id`.json already exists in OUT_DIR (a prior run already fetched a
+    valid result), skip re-running entirely and reconstruct the summary entry from disk. This
+    is what makes it safe to re-invoke `main()` after a crash without redoing already-completed
+    points (CLAUDE.md §20 idempotency / --resume convention).
     """
+    cached_path = OUT_DIR / f"{run_id}.json"
+    if cached_path.exists():
+        print(f"\n=== {run_id} === (skipping -- cached result on disk)")
+        raw = json.loads(cached_path.read_text())
+        return {
+            "run_id": run_id, "status": "completed",
+            "bandwidth_label": bw_label, "bandwidth_requested_bps": bw_bps, "raw": raw,
+        }
+
     print(f"\n=== {run_id} ===")
     handle = netshape.apply(bw_bps, NODES) if bw_bps is not None else None
     verification = None
@@ -180,11 +241,9 @@ def run_one_point(
         clean_remote_output()
         t_start = time.time()
         procs = launch_fn()
-        for i, proc in enumerate(procs):
-            rc = proc.wait(timeout=1500)
-            if rc != 0:
-                print(f"  WARNING: node{i} ssh/torchrun exited {rc} (see log)")
-        print(f"  training wall time: {time.time() - t_start:.1f}s")
+        all_clean = wait_for_procs_or_recover(procs, run_id, max_wait_s)
+        print(f"  training wall time: {time.time() - t_start:.1f}s"
+              f"{' (forced -- see WARNING above)' if not all_clean else ''}")
 
         raw = fetch_result(run_id)
         if raw is None:
@@ -198,6 +257,12 @@ def run_one_point(
             "run_id": run_id, "status": "completed",
             "bandwidth_label": bw_label, "bandwidth_requested_bps": bw_bps, "raw": raw,
         }
+        if not all_clean:
+            result["note"] = (
+                "one or more ssh sessions had to be force-killed after the deadline; the "
+                "training itself completed and wrote a valid output file before that -- see "
+                "force_cleanup_remote()'s docstring for the known teardown-hang mechanism"
+            )
         if verification is not None:
             result["shaping_verification"] = {
                 "requested_bps": verification.requested_bps,
@@ -211,6 +276,7 @@ def run_one_point(
         if handle is not None:
             netshape.restore(handle)
             print(f"  shaping restored for {run_id}")
+        force_cleanup_remote()
 
 
 def main() -> None:
