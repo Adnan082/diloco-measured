@@ -26,6 +26,18 @@ DOES grow under `tc` shaping, since NCCL's bucketed all-reduce is real network t
 an imputed split from ONE calibration measurement per run, not a per-step direct measurement
 the way DiLoCo's separate, unoverlapped outer sync is — stated explicitly here and in every
 record's `notes` field, not left for a reader to discover.
+
+**A real bug this caught on the first real smoke test, fixed before any real grid point ran:**
+the calibration probe's FIRST sample measured 37,955ms against ~21ms for the other two --
+Triton's FlexAttention backward kernel JIT-compiles on its first-ever invocation in the
+process (the same one-time cost `train_driver.py`/ADR-032 already knew about at the *step*
+level, but this driver's calibration probe IS that first invocation), so the naive average was
+dominated by a one-time compilation cost, not steady-state compute. That inflated baseline
+would have made `sync_blocked_ms` compute to 0 on every real step forever (since the real
+per-step time is always less than an ~12-second "baseline"), silently defeating the entire
+point of this calibration mechanism. Fixed with one throwaway, fully-synced warmup step BEFORE
+the calibration loop starts, so Triton compilation completes before any timing measurement
+begins -- `N_JIT_WARMUP_STEPS` below.
 """
 
 import argparse
@@ -44,6 +56,7 @@ from diloco_measured.measurement.telemetry import StepTimer
 
 VOCAB_SIZE = 50257  # gpt2 -- matches configs/models/30m-realvocab.toml
 SEQ_LEN = 512
+N_JIT_WARMUP_STEPS = 1  # throwaway, fully-synced -- lets Triton JIT-compile before timing
 N_CALIBRATION_SAMPLES = 3  # averaged, taken during warmup, never inside the measured window
 
 
@@ -72,10 +85,11 @@ def main() -> None:
         "--data-path", type=str, default="/opt/dlami/nvme/dataset/local_shard.npy"
     )
     args = parser.parse_args()
-    if args.warmup_steps < N_CALIBRATION_SAMPLES + 1:
+    min_warmup = N_JIT_WARMUP_STEPS + N_CALIBRATION_SAMPLES + 1
+    if args.warmup_steps < min_warmup:
         raise ValueError(
-            f"--warmup-steps must be >= {N_CALIBRATION_SAMPLES + 1} to fit the calibration "
-            f"probe before the measured window starts, got {args.warmup_steps}"
+            f"--warmup-steps must be >= {min_warmup} to fit the JIT-warmup step and the "
+            f"calibration probe before the measured window starts, got {args.warmup_steps}"
         )
 
     dist.init_process_group(backend="nccl")
@@ -108,6 +122,17 @@ def main() -> None:
         idx = torch.randint(0, n_seq, (args.micro_batch_size,), device="cuda")
         return data[idx]
 
+    # --- JIT warmup: one fully-synced, throwaway step BEFORE any timing starts. Triton's
+    # FlexAttention backward kernel JIT-compiles on its first-ever invocation in this process
+    # (seconds, not milliseconds) -- without this, that one-time cost lands inside the
+    # calibration probe below and silently wrecks it (see module docstring's "real bug" note).
+    for _ in range(N_JIT_WARMUP_STEPS):
+        batch = sample_batch()
+        loss = loss_fn(batch)
+        loss.backward()
+        torch.cuda.synchronize()
+        optimizer.zero_grad()
+
     # --- Calibration probe: measure compute-only (no_sync) backward time, once, during
     # warmup. Excluded from the measured window entirely -- gradients from these calibration
     # backward passes are discarded (zero_grad() immediately after) so they never affect the
@@ -137,7 +162,7 @@ def main() -> None:
     step_records = []
     started_at = datetime.now(UTC)
     t_wall_start = time.perf_counter()
-    remaining_warmup = args.warmup_steps - N_CALIBRATION_SAMPLES
+    remaining_warmup = args.warmup_steps - N_JIT_WARMUP_STEPS - N_CALIBRATION_SAMPLES
 
     for step in range(args.steps):
         with StepTimer() as timer:
