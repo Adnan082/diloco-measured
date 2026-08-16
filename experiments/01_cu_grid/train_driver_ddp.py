@@ -85,10 +85,12 @@ def main() -> None:
         "--data-path", type=str, default="/opt/dlami/nvme/dataset/local_shard.npy"
     )
     args = parser.parse_args()
-    min_warmup = N_JIT_WARMUP_STEPS + N_CALIBRATION_SAMPLES + 1
+    # 2x N_JIT_WARMUP_STEPS: one pass warms the synced path, one warms the no_sync() path --
+    # see the calibration-probe comment below for why both are needed.
+    min_warmup = 2 * N_JIT_WARMUP_STEPS + N_CALIBRATION_SAMPLES + 1
     if args.warmup_steps < min_warmup:
         raise ValueError(
-            f"--warmup-steps must be >= {min_warmup} to fit the JIT-warmup step and the "
+            f"--warmup-steps must be >= {min_warmup} to fit both JIT-warmup passes and the "
             f"calibration probe before the measured window starts, got {args.warmup_steps}"
         )
 
@@ -122,21 +124,36 @@ def main() -> None:
         idx = torch.randint(0, n_seq, (args.micro_batch_size,), device="cuda")
         return data[idx]
 
-    # --- JIT warmup: one fully-synced, throwaway step BEFORE any timing starts. Triton's
-    # FlexAttention backward kernel JIT-compiles on its first-ever invocation in this process
-    # (seconds, not milliseconds) -- without this, that one-time cost lands inside the
-    # calibration probe below and silently wrecks it (see module docstring's "real bug" note).
+    # --- JIT warmup: TWO fully-synced/no_sync throwaway steps BEFORE any timing starts.
+    # Triton's FlexAttention backward kernel JIT-compiles on its first-ever invocation of a
+    # given code path -- and `ddp_model.no_sync()` takes a DIFFERENT internal path through
+    # backward() than a normal synced call (it bypasses DDP's autograd hooks), so warming up
+    # only the synced path (as an earlier version of this driver did) does NOT warm up
+    # no_sync()'s path. Confirmed for real, not assumed: with only the synced-path warmup in
+    # place, all 5 real DDP grid points still showed a first-calibration-sample outlier
+    # (30ms-6416ms, scaling with how loaded the node was) against ~21ms for the other two --
+    # i.e. it was STILL the no_sync() path recompiling, just one level more specific than the
+    # first fix addressed. Both paths are warmed up explicitly here before any timing starts.
     for _ in range(N_JIT_WARMUP_STEPS):
         batch = sample_batch()
         loss = loss_fn(batch)
         loss.backward()
         torch.cuda.synchronize()
         optimizer.zero_grad()
+    for _ in range(N_JIT_WARMUP_STEPS):
+        batch = sample_batch()
+        with ddp_model.no_sync():
+            loss = loss_fn(batch)
+            loss.backward()
+        torch.cuda.synchronize()
+        optimizer.zero_grad()
 
     # --- Calibration probe: measure compute-only (no_sync) backward time, once, during
     # warmup. Excluded from the measured window entirely -- gradients from these calibration
     # backward passes are discarded (zero_grad() immediately after) so they never affect the
-    # real training trajectory.
+    # real training trajectory. MEDIAN, not mean, of the samples -- a defensive second layer
+    # against exactly the single-outlier contamination the warmup above is meant to prevent;
+    # a median is robust to it even if warmup ever turns out to be incomplete again.
     calibration_samples_ms = []
     for _ in range(N_CALIBRATION_SAMPLES):
         batch = sample_batch()
@@ -151,10 +168,15 @@ def main() -> None:
         torch.cuda.synchronize()
         calibration_samples_ms.append(t0.elapsed_time(t1))
         optimizer.zero_grad()
-    calibrated_compute_only_ms = sum(calibration_samples_ms) / len(calibration_samples_ms)
+    sorted_samples = sorted(calibration_samples_ms)
+    mid = len(sorted_samples) // 2
+    calibrated_compute_only_ms = (
+        sorted_samples[mid] if len(sorted_samples) % 2 == 1
+        else (sorted_samples[mid - 1] + sorted_samples[mid]) / 2
+    )
     if rank == 0:
         print(
-            f"calibration: compute-only backward = {calibrated_compute_only_ms:.2f}ms "
+            f"calibration: compute-only backward (median) = {calibrated_compute_only_ms:.2f}ms "
             f"(samples: {[round(x, 2) for x in calibration_samples_ms]})",
             flush=True,
         )
@@ -162,7 +184,7 @@ def main() -> None:
     step_records = []
     started_at = datetime.now(UTC)
     t_wall_start = time.perf_counter()
-    remaining_warmup = args.warmup_steps - N_JIT_WARMUP_STEPS - N_CALIBRATION_SAMPLES
+    remaining_warmup = args.warmup_steps - 2 * N_JIT_WARMUP_STEPS - N_CALIBRATION_SAMPLES
 
     for step in range(args.steps):
         with StepTimer() as timer:
