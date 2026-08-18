@@ -7,13 +7,14 @@ on Commodity Ethernet.**
 > repository contains measured ones, the code that produced them, and the discrepancy between
 > the two.
 
-**Document status:** `[CONFIRMED]` — a real, shaped, multi-bandwidth compute-utilization grid
-(3 repeats/point) and a real convergence campaign have both run on real GPU hardware
-(2026-08-14/15, see `CLAUDE.md` ADR-035/ADR-037), and the grid is now cross-algorithm: real DDP
-and LocalSGD data join DiLoCo's (2026-08-15/16, ADR-039). Every figure and number below is
-real, not a placeholder. Scope: DDP + DiLoCo + LocalSGD (FSDP2 still not built), one
-30.8M-parameter model. See "What's real so far" below for the precise scope and what's still
-open.
+**Document status:** `[CONFIRMED]` — **project closed 2026-08-18.** Every number and figure
+below is real, measured on real GPU hardware, not a placeholder or a simulation. Three algorithms
+(DDP, DiLoCo, LocalSGD) were run to completion across a real shaped-bandwidth grid, a real
+convergence campaign, and a real held-out-validated predictor. FSDP2 has real, offline-tested
+driver code and a real derived wire model, but was never run on hardware (AWS capacity was
+exhausted on every attempt — see "Why the project stops here"); no FSDP2 number or figure
+exists anywhere in this repository. See "What's real so far" for the precise, itemized
+boundary between what was measured and what wasn't.
 
 👉 **Read [`PRIOR_ART.md`](PRIOR_ART.md) first.** It states exactly what is and is not novel here.
 
@@ -149,8 +150,8 @@ LocalSGD half of the campaign) — see `CLAUDE.md` ADR-039 for both.
 | **Shaped, multi-bandwidth DiLoCo grid, 3 repeats/point** (48 real runs, G1/G2) | ✅ ADR-035/ADR-037 |
 | **Convergence campaign** (single-GPU reference + 12-point DiLoCo grid, G3) | ✅ ADR-037 |
 | **DDP grid** (5 points, bandwidth only) + **LocalSGD grid** (16 points, same `H×bandwidth` as DiLoCo) | ✅ ADR-039 (21 real runs, 1 repeat/point) |
-| FSDP2 driver (the remaining leg of `phase_a.yaml`'s 4-algorithm comparison) | ⬜ not yet built |
 | H-predictor (G4) — fitted, held-out-validated (0% regret, 4/4 bandwidth levels) | ✅ ADR-038 |
+| FSDP2 training driver + derived wire model (`3·N·(P−1)/P` bytes/step, 1.5× DDP) | 🟡 written, offline-tested, **never run on GPU hardware** — zero FSDP2 data exists |
 | `/proc/net/dev` wire-byte accounting in any training driver (`fig5_bytes_on_wire`) | ⬜ never wired in — empty for every algorithm |
 | Fault injection (G7), compression ablation (G6) | ⬜ not yet run |
 
@@ -159,9 +160,10 @@ LocalSGD half of the campaign) — see `CLAUDE.md` ADR-039 for both.
 Four single-GPU EC2 nodes (`g6e.2xlarge`), connected only by TCP over ENA — no NVLink, no PCIe
 peer-to-peer, no EFA. A Linux `tc` shaper converts interconnect bandwidth from a fixed hardware
 property into a swept, independently *verified* experimental variable. On that rig we run DDP,
-FSDP2, LocalSGD, and DiLoCo across synchronization intervals `H` and bandwidth levels, and
-compare measured compute utilization against the literature's analytic model — through one
-shared code path, so the comparison is defensible.
+LocalSGD, and DiLoCo (FSDP2 has a real driver too, but never ran on hardware — "What's real so
+far") across synchronization intervals `H` and bandwidth levels, and compare measured compute
+utilization against the literature's analytic model — through one shared code path, so the
+comparison is defensible.
 
 Full specification: [`CLAUDE.md`](CLAUDE.md) (the project's engineering brain — read before
 changing anything).
@@ -199,15 +201,37 @@ produces every figure above from the committed `results/raw/` records — nothin
 | `src/diloco_measured/analysis/` | Pure. No GPU, no network, no credentials. |
 | `results/` | Committed, append-only measurement corpus. |
 
+## Why the project stops here
+
+The last work session set out to build the third and final training driver (FSDP2, alongside
+DDP and LocalSGD). The driver, its calibration methodology, and its wire-model derivation were
+all completed and verified offline (231 tests, lint and type-check clean) — but every attempt
+to launch the GPU cluster to actually run it hit `InsufficientInstanceCapacity` on
+`g6e.2xlarge` across every `us-east-1` availability zone, a real, recurring AWS capacity
+constraint documented earlier in this project too (`CLAUDE.md` ADR-031). Rather than continuing
+to retry indefinitely, the decision was made to close the project here, with FSDP2's groundwork
+committed honestly as real-but-unrun rather than either discarded or quietly claimed as done.
+
+This is a legitimate, deliberate stopping point, not an abandonment mid-thought: the project's
+primary goals (G1–G4, `CLAUDE.md` §4.1) are all satisfied, on three real algorithms, with a
+real cross-algorithm comparison — the headline scientific question ("is measured compute
+utilization below what the literature's simulated model predicts?") has a real, repeatable,
+three-algorithm-consistent answer. What remains open (FSDP2 on hardware, a larger model,
+repeats for the DDP/LocalSGD grids, `/proc/net/dev` wire-byte accounting, fault injection,
+compression) is scoped precisely, not vaguely, in "What's real so far" above and in each ADR's
+"Not resolved" section — a future session (or reader) has an exact, honest map of where to
+pick up, per `CLAUDE.md` §42's Future Extension Strategy.
+
 ## Status
 
-Phase 2/3 in progress (`CLAUDE.md` v0.1). Network characterization (Phase 1), a real shaped
-multi-bandwidth DiLoCo grid with 3 repeats (G1/G2 — Phase 2/3), a real convergence campaign
-(G3 — Phase 4), and real DDP + LocalSGD CU grids (ADR-039) are done and committed. A FSDP2
-driver, a DDP/LocalSGD convergence campaign, repeats for the DDP/LocalSGD grids, a larger
-model, and `/proc/net/dev` wire-byte accounting are the main remaining work toward the full
-`phase_a.yaml`/`phase_b.yaml` scope. See `CLAUDE.md` §35 for the full phase plan and §40 for
-remaining open questions.
+**Closed, 2026-08-18.** `CLAUDE.md` v0.1. Network characterization (Phase 1), the real shaped
+multi-bandwidth DiLoCo grid with 3 repeats (G1/G2), the real convergence campaign (G3), real
+DDP + LocalSGD CU grids (ADR-039), and the held-out-validated H-predictor (G4) are done,
+committed, and verified. FSDP2's driver and wire model are written and offline-tested but never
+run on hardware (above). Every cluster used across the project's lifetime was torn down and
+independently verified terminated — nothing is running, nothing is billing. See `CLAUDE.md`
+§35 for the full phase plan and §40/§41 for every open question and decision, preserved as-is
+for anyone picking this back up.
 
 ## License
 

@@ -12,10 +12,13 @@ before publication.
 
 ## Scope limitations
 
-- **DiLoCo only, so far.** All real measurements to date (`CLAUDE.md` ADR-034/035/037) are
-  DiLoCo; DDP, FSDP2, and LocalSGD have no training driver yet. The headline CU-vs-bandwidth
-  and convergence results are therefore not yet a cross-algorithm comparison — that is real
-  remaining work, not a claim already made and hedged.
+- **Three algorithms measured (DDP, DiLoCo, LocalSGD); FSDP2 was never run.** The CU-grid
+  headline (`CLAUDE.md` ADR-034/035/037/039) is a real cross-algorithm comparison across DDP,
+  DiLoCo, and LocalSGD. FSDP2 has a real, offline-tested driver and a real derived wire model
+  (ADR-040), but every attempt to run it on real GPU hardware was blocked by AWS capacity
+  exhaustion, and the project closed before it could be retried — no FSDP2 measurement exists.
+  The convergence campaign (G3) and the H-predictor (G4) are DiLoCo-only; neither DDP nor
+  LocalSGD has run a convergence campaign, and the predictor is not calibrated for them.
 - **A 30.8M-parameter model, not the 1B `phase_a.yaml`/`phase_b.yaml` specify.** Chosen for
   validated-working continuity across sessions (`configs/models/30m-realvocab.toml`); the 1B
   config's `torchtitan` `Trainer.Config` adapter does not exist yet.

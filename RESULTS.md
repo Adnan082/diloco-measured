@@ -1,11 +1,13 @@
 # Results Log
 
-**Status:** `[CONFIRMED]` — the real shaped, multi-bandwidth DiLoCo grid now has 3 repeats/point
-(G1/G2 satisfied), a real convergence campaign has run (G3 satisfied), and the H-predictor is
-fitted and held-out-validated (G4 satisfied, 0% regret at all 4 tested bandwidth levels). The
-CU grid is now cross-algorithm for the first time: real DDP and LocalSGD grids (21 runs, ADR-039)
-join DiLoCo's. FSDP2 is still not built, and DDP/LocalSGD have 1 repeat/point (no variance
-estimate yet) — see ADR-039's "Not resolved."
+**Status:** `[CONFIRMED]` — **project closed 2026-08-18 (ADR-040).** The real shaped,
+multi-bandwidth DiLoCo grid has 3 repeats/point (G1/G2 satisfied), a real convergence campaign
+has run (G3 satisfied), and the H-predictor is fitted and held-out-validated (G4 satisfied, 0%
+regret at all 4 tested bandwidth levels). The CU grid is cross-algorithm across DDP, DiLoCo,
+and LocalSGD (real DDP and LocalSGD grids, 21 runs, ADR-039). FSDP2 has a real, offline-tested
+driver and derived wire model (ADR-040) but was never run — every cluster launch attempt hit
+AWS capacity exhaustion, and the project closed rather than continuing to retry. DDP/LocalSGD
+have 1 repeat/point (no variance estimate) — see ADR-039's "Not resolved."
 
 This file is the human-readable ledger of every campaign: what ran, what didn't, and why.
 Per `CLAUDE.md` §16.3 and §25, nothing in `results/raw/` is ever edited or deleted — this file
@@ -30,12 +32,18 @@ Do not write a number here that is not backed by a record in `results/raw/`.
 | 2026-08-15/16 | Real LocalSGD grid (`H∈{1,8,32,128} × bw∈{50m,200m,1g,5g}`, `01_cu_grid`) | 0.1.0 | 16 | 16 | 0 | 0 | 0 | ADR-039. The no-outer-optimizer ablation against DiLoCo, directly comparable for the first time — tracks DiLoCo's existing numbers within ~0.15pp at low H, a few points lower at high H. A real orchestration robustness bug (an uncaught SSH-teardown timeout that would have crashed the campaign before any of these 16 points ran) was found and fixed mid-campaign — see ADR-039. |
 
 **Not yet run:** FSDP2 leg of `configs/grids/phase_a.yaml`/`phase_b.yaml`'s 4-algorithm
-comparisons (no training driver exists for it yet). The 1B model `phase_a.yaml` specifies.
-More than 1 seed per DDP/LocalSGD grid point or per convergence configuration. Fault injection
-(`G7`). Compression ablation (`G6`). A genuinely held-out *configuration* for the predictor
-(what ran was a held-out repeat of the same configs — see ADR-038's "Not resolved"). The
-`diloco-measured plan --probe` CLI surface itself. `/proc/net/dev` wire-byte accounting in any
-training driver (`fig5_bytes_on_wire` remains empty for every algorithm — ADR-038/039).
+comparisons — a real driver and wire model exist (ADR-040) but every real launch attempt hit
+AWS `g6e.2xlarge` capacity exhaustion across every `us-east-1` AZ, and the project closed
+before a successful launch. The 1B model `phase_a.yaml` specifies. More than 1 seed per
+DDP/LocalSGD grid point or per convergence configuration. Fault injection (`G7`). Compression
+ablation (`G6`). A genuinely held-out *configuration* for the predictor (what ran was a
+held-out repeat of the same configs — see ADR-038's "Not resolved"). The `diloco-measured plan
+--probe` CLI surface itself. `/proc/net/dev` wire-byte accounting in any training driver
+(`fig5_bytes_on_wire` remains empty for every algorithm — ADR-038/039/040).
+
+**Project closed 2026-08-18, ADR-040.** G1–G4 are satisfied on three real, cross-validated
+algorithms (DDP, DiLoCo, LocalSGD). The items above are the complete, precise, honest map of
+what remains for anyone picking this back up — not a vague "more work needed."
 
 ## Cumulative cost
 
@@ -45,12 +53,13 @@ training driver (`fig5_bytes_on_wire` remains empty for every algorithm — ADR-
 | 2026-08-14/15 | ~1.9 hrs × 5 instances, cluster relaunched (placement group `pg-0ee059f5ef7da671b`), same `us-east-1b`, same $9.32/hr — shaped multi-bandwidth grid session | ~$18 | ~$45 |
 | 2026-08-15 | ~2.3 hrs × 5 instances, cluster relaunched again (placement group `pg-08f2faef5740fa3c4`), same `us-east-1b`, same $9.32/hr — repeats 1/2 + convergence campaign session (13:58:23–~16:14 UTC) | ~$21 | ~$66 |
 | 2026-08-15/16 | ~6.4 hrs × 5 instances, cluster relaunched a fourth time (placement group `pg-0f8e8774a16b3b7e7`), same `us-east-1b`, same $9.32/hr — DDP + LocalSGD grid session, including two rounds of live debugging (the DDP calibration-probe fixes and the grid-orchestration timeout fix, both requiring real re-runs against real hardware to verify) | ~$60 | ~$126 |
+| 2026-08-17/18 | FSDP2 session (ADR-040) — every launch attempt (1 direct + 1 full `retry_across_azs.sh` pass + a partial second pass, ~7 control-node launches total, each terminated within minutes once its GPU nodes failed with `InsufficientInstanceCapacity`) failed before any GPU node ever came up | <$1 (control-node-only, brief) | ~$127 |
 
-All four clusters terminated at the end of their respective sessions (`infra/teardown.sh`) —
-every instance confirmed `terminated` and each placement group deleted, verified via
-`aws ec2 describe-instances`/`describe-placement-groups` immediately after. Budget ceiling per
-`CLAUDE.md` §5.1 is ~$650–800 for the whole project — cumulative spend so far is well under 20%
-of that.
+All five sessions' clusters terminated (`infra/teardown.sh`) — every instance confirmed
+`terminated` and each placement group deleted, verified via `aws ec2 describe-instances`/
+`describe-placement-groups` immediately after, including every failed attempt in the last row
+(none left running). Budget ceiling per `CLAUDE.md` §5.1 is ~$650–800 for the whole project —
+**final cumulative spend ~$127, under 20% of budget.** Project closed 2026-08-18 (ADR-040).
 
 ## Known-bad / superseded records
 
