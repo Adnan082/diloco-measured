@@ -80,6 +80,18 @@ Per Architecture Principle #7 (honest labelling) and FR-04, everything Option 1 
 - **Attribution:** this functional form is the project's own simplification for a shared
   "the literature" baseline, not a literal transcription of any single paper's equation —
   see Option 3 above for why a literal per-paper reproduction is separate, harder, future work.
+- **FSDP2's `bytes_synced` is `3 · N`, not `N`** (added 2026-08-17, `train_driver_fsdp2.py`).
+  Every other algorithm in this project does one real collective call per sync (DDP's
+  all-reduce; DiLoCo/LocalSGD's outer all-reduce), so `bytes_synced = N` matches "one
+  undifferentiated transfer" directly. FSDP2 does three separate real collective calls per
+  step (forward all-gather, backward all-gather, backward reduce-scatter — `methods/
+  wire_model.md` §3a) — under this model's own "each real transfer costs one full `bytes/B`"
+  simplification, that means three separate `N`-byte costs, summed. This is a *starker*
+  penalty than the ring-collective-aware `1.5×` figure `wire_model.md` derives for the same
+  three collectives, and that's expected, not a mismatch: this model doesn't credit ring
+  parallelism efficiency at all, for any algorithm, so multiplying the number of collective
+  *calls* (not their ring-adjusted byte cost) is the internally-consistent extension of the
+  same simplification already applied everywhere else in this document.
 
 ## 4. Interpolation policy
 

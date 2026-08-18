@@ -1,7 +1,9 @@
 # Bytes-on-Wire Model
 
-**Status:** `[CONFIRMED]` derivation form; `[PROPOSED]` exact per-algorithm constants pending
-Day 1 measurement. Specifies `measurement/wire.py::predict()` and `::account()` (FR-05).
+**Status:** `[CONFIRMED]` derivation form for every algorithm this project measures, including
+FSDP2 (§3a, resolved 2026-08-17); `[PROPOSED]` exact per-algorithm constants pending a real
+`/proc/net/dev` cross-check, which no driver has implemented yet (§6). Specifies
+`measurement/wire.py::predict()` and `::account()` (FR-05).
 
 ---
 
@@ -38,11 +40,49 @@ test target (`CLAUDE.md` §30.2: "DDP vs DiLoCo ratio equals H").
 
 | Algorithm | What's synchronized | Size |
 | --- | --- | --- |
-| DDP | Full gradient, every step | `num_params × dtype_bytes` |
-| FSDP2 | Sharded gradients/params per step | depends on sharding — `[UNKNOWN]`, derive in Phase 0 |
+| DDP | Full gradient, every step (1 all-reduce) | `num_params × dtype_bytes` |
+| FSDP2 | Sharded params/grads, every step (2 all-gathers + 1 reduce-scatter) | `num_params × dtype_bytes`, see §3a — **3×** the per-collective volume of DDP |
 | LocalSGD | Full parameter tensor, every `H` steps | `num_params × dtype_bytes` |
 | DiLoCo | Pseudo-gradient `Δ = θ_outer − θ_inner`, every `H` steps | `num_params × dtype_bytes` |
 | DiLoCo + compression | Compressed pseudo-gradient + any error-feedback overhead | codec-dependent, see `compress.py` (FR-10) |
+
+### 3a. FSDP2's per-step communication pattern — `[CONFIRMED]`, derived 2026-08-17
+
+Resolves this document's former `[UNKNOWN]` FSDP2 row (Phase 0's placeholder). Derived
+analytically from `torch.distributed.fsdp.fully_shard`'s own documented behavior and
+`torchtitan/models/llama3/infra/parallelize.py::apply_fsdp()`'s real wrapping code (read
+directly, not guessed) — not yet cross-checked against a real `/proc/net/dev` measurement,
+which is the same project-wide gap `fig5_bytes_on_wire` already documents (ADR-038/039) as
+unresolved for every algorithm, FSDP2 included.
+
+With `reshard_after_forward=True` (torchtitan's own default for every real parameter-holding
+FSDP group when pipeline parallelism is disabled — the case for every configuration this
+project runs), one training step does three real ring collectives, each moving the standard
+ring-collective volume `N(P−1)/P` bytes per rank:
+
+1. **Forward all-gather** — materialize full (unsharded) parameters before computing.
+2. **Backward all-gather** — parameters were freed after forward, so they must be re-gathered
+   before gradient computation.
+3. **Backward reduce-scatter** — sum gradients across ranks, re-shard the result.
+
+```
+bytes_per_rank_per_step (FSDP2) = 3 · N · (P − 1) / P    = 1.5 × DDP's 2·N·(P−1)/P
+```
+
+This 1.5× figure is a well-established, independently-documented property of FSDP's
+`FULL_SHARD`-equivalent strategy (memory savings traded for extra communication versus DDP) —
+this derivation reproduces it from this project's own actual wrapping code rather than citing
+it uncritically. `H` has no meaning for FSDP2 in this project's framework (not a
+semi-synchronous method) — every FSDP2 grid point fixes `H=1`, same as DDP.
+
+**A separate, simpler convention for the `cu_analytic_*` model** (`methods/cu_model.md` §3):
+that model does not account for ring-collective efficiency at all — every real transfer
+counts as one full `N`-byte `bytes/B` cost, deliberately simpler than the ring-collective math
+above. Under that convention, FSDP2's three separate collective calls (forward all-gather,
+backward all-gather, backward reduce-scatter) give `bytes_synced = 3·N`, not `1.5·N` — the
+starker ratio is a consequence of the CU model's own simplification, not a different measured
+reality. Both numbers are real and both are used, for different purposes; conflating them
+would be the mistake, not either individually.
 
 ## 4. Idle baseline
 
@@ -59,5 +99,9 @@ explain away.
 
 ## 6. Open items
 
-`[UNKNOWN]` — FSDP2's exact per-step communication volume at a given sharding configuration must
-be derived empirically on Day 0/1 before this document's FSDP2 row can move to `[CONFIRMED]`.
+`[CONFIRMED — 2026-08-17]` FSDP2's per-step communication volume is now derived, §3a. What
+remains open (same as every other algorithm in this project, not FSDP2-specific): no driver
+yet captures `/proc/net/dev` before/after a measurement window, so `wire_bytes_measured` has
+never been populated for any real record, and this document's ring-collective formulas remain
+analytically derived rather than empirically cross-checked (`fig5_bytes_on_wire` is empty for
+every algorithm as a direct consequence — ADR-038/039).

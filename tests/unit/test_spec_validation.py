@@ -30,15 +30,17 @@ def test_fixture_experiment_spec_passes_full_validation(fixtures_dir):
 
 
 @pytest.mark.unit
-def test_ddp_with_h_not_equal_one_is_rejected():
-    spec = _base_spec(algorithm="ddp", H=32)
+@pytest.mark.parametrize("algorithm", ["ddp", "fsdp2"])
+def test_ddp_and_fsdp2_with_h_not_equal_one_is_rejected(algorithm):
+    spec = _base_spec(algorithm=algorithm, H=32)
     with pytest.raises(SpecValidationError, match="H == 1"):
         validate_experiment_spec(spec)
 
 
 @pytest.mark.unit
-def test_ddp_with_h_equal_one_is_accepted():
-    spec = _base_spec(algorithm="ddp", H=1)
+@pytest.mark.parametrize("algorithm", ["ddp", "fsdp2"])
+def test_ddp_and_fsdp2_with_h_equal_one_is_accepted(algorithm):
+    spec = _base_spec(algorithm=algorithm, H=1)
     validate_experiment_spec(spec)  # must not raise
 
 
@@ -46,8 +48,8 @@ def test_ddp_with_h_equal_one_is_accepted():
 def test_h_equal_one_with_non_ddp_algorithm_is_accepted():
     """One-directional rule (CLAUDE.md ADR-036): H=1 is a legitimate degenerate-case
     configuration for diloco/localsgd (sync every inner step) — real committed data
-    (ADR-034/035) already uses it. Only the reverse direction (ddp requires H==1) is
-    enforced; see test_ddp_with_h_not_equal_one_is_rejected.
+    (ADR-034/035) already uses it. Only the forward direction (ddp/fsdp2 require H==1) is
+    enforced; see test_ddp_and_fsdp2_with_h_not_equal_one_is_rejected.
     """
     spec = _base_spec(algorithm="diloco", H=1)
     validate_experiment_spec(spec)  # must not raise
@@ -63,8 +65,7 @@ def test_compression_is_accepted_for_localsgd_and_diloco(algorithm):
 @pytest.mark.unit
 @pytest.mark.parametrize("algorithm", ["ddp", "fsdp2"])
 def test_compression_is_rejected_for_ddp_and_fsdp2(algorithm):
-    H = 1 if algorithm == "ddp" else 8
-    spec = _base_spec(algorithm=algorithm, H=H, compression="fp16")
+    spec = _base_spec(algorithm=algorithm, H=1, compression="fp16")
     with pytest.raises(SpecValidationError, match="compression"):
         validate_experiment_spec(spec)
 
