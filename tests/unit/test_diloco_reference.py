@@ -10,11 +10,14 @@ that genuinely needs multiple processes.
 from __future__ import annotations
 
 import pytest
-import torch
-import torch.nn.functional as F
-from torch import nn
 
-from diloco_measured.measurement.diloco import DiLoCoTrainer
+torch = pytest.importorskip("torch", reason="measurement extra not installed")
+import torch.nn.functional as F  # noqa: E402
+from torch import nn  # noqa: E402
+
+from diloco_measured.measurement.diloco import DiLoCoTrainer  # noqa: E402
+
+pytestmark = pytest.mark.requires_torch
 
 INNER_CFG = {"name": "adamw", "lr": 0.05}
 OUTER_CFG = {"name": "nesterov_sgd", "lr": 0.1, "momentum": 0.9}

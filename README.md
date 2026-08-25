@@ -1,5 +1,7 @@
 # diloco-measured
 
+[![CI](https://github.com/Adnan082/diloco-measured/actions/workflows/ci.yml/badge.svg)](https://github.com/Adnan082/diloco-measured/actions/workflows/ci.yml)
+
 **Measured, Not Simulated — A Bandwidth-Controlled Evaluation of Semi-Synchronous LLM Training
 on Commodity Ethernet.**
 
@@ -7,26 +9,33 @@ on Commodity Ethernet.**
 > repository contains measured ones, the code that produced them, and the discrepancy between
 > the two.
 
-**Document status:** `[CONFIRMED]` — **project closed 2026-08-18.** Every number and figure
-below is real, measured on real GPU hardware, not a placeholder or a simulation. Three algorithms
-(DDP, DiLoCo, LocalSGD) were run to completion across a real shaped-bandwidth grid, a real
-convergence campaign, and a real held-out-validated predictor. FSDP2 has real, offline-tested
-driver code and a real derived wire model, but was never run on hardware (AWS capacity was
-exhausted on every attempt — see "Why the project stops here"); no FSDP2 number or figure
-exists anywhere in this repository. See "What's real so far" for the precise, itemized
-boundary between what was measured and what wasn't.
+**Status: closed, 2026-08-18.** Three training algorithms (DDP, DiLoCo, LocalSGD) were run to
+completion on a 4-node GPU cluster over a bandwidth-shaped network: a measured
+compute-utilization surface, a convergence campaign, and a held-out-validated predictor. A
+fourth (FSDP2) has working driver code and a derived communication-cost model, but never ran
+on hardware — see "Why the project stops here" below. Every number and figure here traces to a
+committed raw record, not a placeholder; the precise boundary between what was measured and
+what wasn't is itemized in "What's real so far."
+
+**Scale, stated up front:** the model trained here is 30.8M parameters — sized to fit a
+one-week, four-GPU budget, not an attempt at frontier scale. The claim is about the *shape* of
+the bandwidth/compute-utilization relationship and how far it diverges from the literature's
+simulated model, not about absolute numbers at billion-parameter scale (see "What this is NOT").
 
 👉 **Read [`PRIOR_ART.md`](PRIOR_ART.md) first.** It states exactly what is and is not novel here.
+The full engineering log — every decision, every requirement, every measurement's provenance —
+lives in [`CLAUDE.md`](CLAUDE.md), written and maintained as this project's working
+specification throughout (not added after the fact).
 
 ---
 
 ## The headline result
 
-Real DiLoCo training, 4× `g6e.2xlarge` (L40S, TCP-only interconnect, no NVLink/EFA), 30.8M
-real parameters, real FineWeb-Edu data, real Linux `tc` bandwidth shaping verified against a
-real `iperf3` measurement before every run (FR-02) — `H ∈ {1, 8, 32, 128}` × bandwidth
-`∈ {50, 200, 1000, 5000} Mbit/s`, **3 repeats per point (48 runs)**, zero shaping-gate
-failures, zero crashes:
+DiLoCo training on 4× `g6e.2xlarge` (L40S GPUs, TCP-only interconnect — no NVLink, no EFA),
+30.8M parameters, FineWeb-Edu data, and Linux `tc` bandwidth shaping independently verified
+against an `iperf3` measurement before every run — swept across `H ∈ {1, 8, 32, 128}` and
+bandwidth `∈ {50, 200, 1000, 5000} Mbit/s`, **3 repeats per point (48 runs)**, zero
+shaping-gate failures, zero crashes:
 
 ![Compute utilization vs. bandwidth — measured vs. analytic, DiLoCo, 4 values of H](report/assets/fig1_cu_surface_diloco.png)
 
@@ -171,19 +180,26 @@ changing anything).
 ## What this is NOT
 
 - Not a new distributed-training algorithm.
-- Not a reproduction of DiLoCo's quality results at scale.
+- Not a reproduction of DiLoCo's quality results at scale — the model here is 30.8M
+  parameters, chosen to fit a one-week, four-GPU compute budget, not billion-parameter scale.
 - Not a production library. See `CLAUDE.md` §4.5 for the full non-goals list.
 
-## Three-command reproduction (no GPU required)
+## Regenerate every figure (no GPU required)
+
+This reproduces the **analysis**, not the measurements — the training runs themselves needed
+the real 4× `g6e.2xlarge` cluster (see "What's real so far"). What's below regenerates every
+figure in this README from the committed raw records in `results/raw/`, on a plain laptop:
 
 ```bash
-git clone <repo>
+git clone https://github.com/Adnan082/diloco-measured.git
 cd diloco-measured
-make figures   # regenerates every report figure from committed results/raw/
+make figures   # installs the laptop-sized base package, then regenerates every figure
 ```
 
-`make figures` runs with no GPU, no network access, and no AWS credentials (FR-11), and
-produces every figure above from the committed `results/raw/` records — nothing is hand-drawn.
+`make figures` installs no GPU stack (`torch`/`torchtitan`/`torchft` live behind a separate
+`measurement` extra, only needed to re-run training on a real cluster — see `pyproject.toml`),
+opens no network connection, and uses no AWS credentials (FR-11). Every figure above is
+produced from the committed `results/raw/` records — nothing is hand-drawn.
 
 ## Repository map
 

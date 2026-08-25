@@ -87,3 +87,24 @@ def test_pools_across_bandwidth_levels_at_fixed_h(kept_v1_records):
 def test_raises_when_no_matching_records_exist(kept_v1_records):
     with pytest.raises(ValueError, match="nothing to plot"):
         fig5_bytes_on_wire.build(kept_v1_records, algorithm="nonexistent_algorithm")
+
+
+@pytest.mark.integration_cpu
+def test_stamps_no_data_message_when_records_exist_but_wire_was_never_populated():
+    """Real, pre-share finding (2026-08-19): every DDP/LocalSGD/DiLoCo RunResult this project
+    ever committed has cu_grid records but NO `wire` field (no driver captures /proc/net/dev),
+    so this figure used to render as blank axes with no indication of why. `records` here
+    matches that real shape exactly — `cu_grid` phase present, `wire` key absent entirely.
+    """
+    records = [
+        {
+            "run_id": "fake-run-0",
+            "spec": {"phase": "cu_grid", "algorithm": "ddp", "H": 1},
+        },
+    ]
+    fig = fig5_bytes_on_wire.build(records, algorithm="ddp")
+    ax = fig.axes[0]
+    assert ax.get_legend() is None  # nothing plotted, so no legend to draw
+    assert len(ax.get_lines()) == 0
+    stamped_text = " ".join(t.get_text() for t in ax.texts)
+    assert "No wire-byte data collected" in stamped_text

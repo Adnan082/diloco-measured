@@ -8,13 +8,16 @@ exactly this as "the invariant most likely to be silently broken."
 from __future__ import annotations
 
 import pytest
-import torch
 
-from diloco_measured.measurement.compress import (
+torch = pytest.importorskip("torch", reason="measurement extra not installed")
+
+from diloco_measured.measurement.compress import (  # noqa: E402
     Fp16Codec,
     Int8ErrorFeedbackCodec,
     TopKCodec,
 )
+
+pytestmark = pytest.mark.requires_torch
 
 
 @pytest.mark.unit

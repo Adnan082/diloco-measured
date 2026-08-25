@@ -1,0 +1,51 @@
+name: CI
+
+# Runs on every push/PR: lint, type-check, and the analysis-only test subset (CLAUDE.md §30.8
+# "Never touches AWS, never requires a GPU"). This is deliberately NOT the full test suite —
+# 6 test files (marked `requires_torch`, see pyproject.toml) exercise `measurement/`'s
+# reference DiLoCo/LocalSGD implementations and need `torch`/`torch.distributed`, which this
+# workflow does not install (the whole point of the `measurement` extra split is that CI, like
+# a reviewer's laptop, should never need the GPU stack just to check the analysis path). Those
+# 6 files use `pytest.importorskip("torch", ...)` so they SKIP cleanly here rather than
+# breaking collection for everything else.
+#
+# Uses `uv sync --frozen` against the committed `uv.lock` rather than a loose `pip install`,
+# so this is the same byte-reproducible install a real reviewer would get, not a separately
+# resolved one that could quietly drift from what's committed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (laptop-sized base + dev, from the lockfile, no torch)
+        run: uv sync --frozen --extra dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check src tests
+
+      - name: Type-check (mypy)
+        run: uv run mypy src
+
+      - name: Unit tests (excluding requires_torch)
+        run: uv run pytest -m "unit and not requires_torch" tests/unit -v
+
+      - name: CPU integration tests (excluding requires_torch)
+        run: uv run pytest -m "integration_cpu and not requires_torch" tests/integration_cpu -v
+
+      - name: Regenerate figures from committed results/raw/ (FR-11 — no GPU, no network, no credentials)
+        run: uv run diloco-measured figures

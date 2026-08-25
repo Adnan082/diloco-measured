@@ -72,20 +72,34 @@ install_system_packages() {
 # Until it does, this installs from pyproject.toml directly — NOT a substitute for a real
 # lockfile (version drift between nodes is exactly what NFR/R15 warns against); this is a
 # placeholder so the rest of bootstrap is exercisable before the lockfile exists.
+#
+# `--extra measurement` is REQUIRED here (2026-08-19 pre-share fix): torch/torchtitan/
+# torchft moved out of the base `dependencies` into that extra so a laptop `make figures`
+# stops pulling the GPU stack — every real cluster node (GPU or control) still needs it, so
+# it's passed explicitly rather than relying on a base install to include it implicitly.
 install_deps() {
   if ! command -v uv >/dev/null 2>&1; then
     log "installing uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Pinned to a specific released version's installer (2026-08-19 pre-share finding), not
+    # the mutable https://astral.sh/uv/install.sh "latest" script -- astral.sh/uv/<version>/
+    # install.sh 301-redirects to an immutable, versioned GitHub release asset
+    # (releases.astral.sh/github/uv/releases/download/<version>/uv-installer.sh), confirmed
+    # live. This narrows the trust boundary from "whatever that URL serves at bootstrap
+    # time, forever" to "this one specific release" -- accepted, not eliminated: uv does not
+    # publish a checksum file alongside this asset for us to verify against, so the residual
+    # trust is still "this GitHub release wasn't tampered with," not zero. REPIN before a
+    # future campaign if this version is more than a few months old.
+    curl -LsSf https://astral.sh/uv/0.12.6/install.sh | sh
     export PATH="$HOME/.local/bin:$PATH"
   fi
 
   cd "$(dirname "$0")/.."   # repo root
   if [ -f uv.lock ]; then
     log "uv.lock found — installing from lockfile (reproducible)"
-    uv sync --frozen
+    uv sync --frozen --extra measurement
   else
     log "WARNING: no uv.lock yet — installing from pyproject.toml directly (NOT reproducible, R15 risk)"
-    uv sync
+    uv sync --extra measurement
   fi
 }
 

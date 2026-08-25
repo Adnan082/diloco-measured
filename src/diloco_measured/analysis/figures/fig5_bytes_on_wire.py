@@ -78,6 +78,7 @@ def build(
     fig, ax = plt.subplots(figsize=(8, 6))
 
     counted_run_ids: set[str] = set()
+    any_plotted = False
     for series_key, style in _SERIES_STYLE.items():
         xs: list[int] = []
         ys: list[float] = []
@@ -95,6 +96,7 @@ def build(
                 counted_run_ids.update(r["run_id"] for r in grouped[H])
 
         if xs:
+            any_plotted = True
             ax.plot(
                 xs, ys,
                 color=_SERIES_COLOR[series_key], linestyle=style["linestyle"],
@@ -105,7 +107,23 @@ def build(
     ax.set_yscale("log")
     ax.set_xlabel("H (synchronization interval)")
     ax.set_ylabel("Bytes on wire per training token")
-    ax.legend(fontsize=9, loc="upper right")
+
+    if any_plotted:
+        ax.legend(fontsize=9, loc="upper right")
+    else:
+        # Real, pre-share finding (2026-08-19): `wire` has never been populated on any
+        # RunResult in this project (no training driver captures /proc/net/dev — CLAUDE.md
+        # ADR-038/039/040), so this figure previously rendered as a blank set of axes with no
+        # indication of why. A visitor should never have to guess whether a figure module
+        # silently failed versus a field that was genuinely never collected — stamp it.
+        ax.text(
+            0.5, 0.5,
+            "No wire-byte data collected for this algorithm\n"
+            "(no training driver captures /proc/net/dev — see README's\n"
+            "\"What's real so far\" and CLAUDE.md ADR-038/039/040)",
+            ha="center", va="center", transform=ax.transAxes,
+            fontsize=10, color="gray", wrap=True,
+        )
 
     version_label = harness_version if harness_version is not None else "mixed/unspecified"
     ax.set_title(

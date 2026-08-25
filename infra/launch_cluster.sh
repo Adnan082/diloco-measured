@@ -268,6 +268,7 @@ launch_control_node() {
     --image-id "$CONTROL_AMI_ID" --instance-type "$CONTROL_INSTANCE_TYPE" --count 1 \
     --subnet-id "$SUBNET_ID" --security-group-ids "$SG_ID" --key-name "$KEY_NAME" \
     --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=100,VolumeType=gp3}' \
+    --metadata-options "HttpTokens=required,HttpPutResponseHopLimit=1" \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Project,Value=$PROJECT_TAG},{Key=Role,Value=control}]" \
     --query "Instances[0].InstanceId" --output text
 }
@@ -309,6 +310,7 @@ launch_gpu_nodes() {
       --subnet-id "$SUBNET_ID" --security-group-ids "$SG_ID" --key-name "$KEY_NAME" \
       --placement "GroupName=$PLACEMENT_GROUP_NAME,AvailabilityZone=$AZ" \
       --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=200,VolumeType=gp3}' \
+      --metadata-options "HttpTokens=required,HttpPutResponseHopLimit=1" \
       --tag-specifications "ResourceType=instance,Tags=[{Key=Project,Value=$PROJECT_TAG},{Key=Role,Value=gpu}]" \
       --query "Instances[0].InstanceId" --output text
   done

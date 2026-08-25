@@ -26,6 +26,7 @@ from pathlib import Path
 UNKNOWN = "unknown"
 NCCL_ENV_PREFIX = "NCCL_"
 IMDS_BASE = "http://169.254.169.254/latest/meta-data"
+IMDS_TOKEN_URL = "http://169.254.169.254/latest/api/token"
 # Local network hop only when actually on EC2; must never hang a run on a laptop where the
 # link-local address simply doesn't respond.
 IMDS_TIMEOUT_S = 0.5
@@ -86,13 +87,39 @@ def _nvidia_smi_topo() -> str | None:
     return _run(["nvidia-smi", "topo", "-m"])
 
 
-def _imds_get(path: str) -> str | None:
-    """Query the EC2 Instance Metadata Service. Returns None off-EC2 or on any error —
-    IMDSv1 GET is used here for simplicity; a real deployment should prefer IMDSv2 (token-
-    based) — [PROPOSED], revisit before Phase 1 if the launch AMI enforces IMDSv2-only.
+def _imds_token() -> str | None:
+    """Fetch an IMDSv2 session token (`[CONFIRMED]` — fixed 2026-08-19, a pre-share security
+    finding: this used to be a plain IMDSv1 GET, the same SSRF credential-theft vector as the
+    2019 Capital One breach. `launch_cluster.sh` also now launches every instance with
+    `HttpTokens=required`, so IMDSv1 requests would be refused outright even if this weren't
+    fixed here — both ends of the finding are addressed together, not just one.
     """
     try:
-        with urllib.request.urlopen(f"{IMDS_BASE}/{path}", timeout=IMDS_TIMEOUT_S) as resp:
+        req = urllib.request.Request(
+            f"{IMDS_TOKEN_URL}",
+            method="PUT",
+            headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+        )
+        with urllib.request.urlopen(req, timeout=IMDS_TIMEOUT_S) as resp:
+            return resp.read().decode().strip()
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+def _imds_get(path: str) -> str | None:
+    """Query the EC2 Instance Metadata Service via IMDSv2 (token-based). Returns None off-EC2,
+    if a token can't be obtained, or on any error — never raises, matching every other
+    best-effort capture helper in this module.
+    """
+    token = _imds_token()
+    if token is None:
+        return None
+    try:
+        req = urllib.request.Request(
+            f"{IMDS_BASE}/{path}",
+            headers={"X-aws-ec2-metadata-token": token},
+        )
+        with urllib.request.urlopen(req, timeout=IMDS_TIMEOUT_S) as resp:
             return resp.read().decode().strip()
     except (urllib.error.URLError, OSError, ValueError):
         return None

@@ -5,17 +5,35 @@ description = "Measured, not simulated: a bandwidth-controlled evaluation of sem
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
-# STATUS: [CONFIRMED] — §40 Q2 (torchft/torchtitan pins) validated FOR REAL on live GPU
-# hardware 2026-08-14 (ADR-032): torchft's own DiLoCo test suite passes (8/8) and
-# torchtitan's debugmodel builds + runs a real forward/backward pass on an L40S, exact
-# param-count match to ADR-026. §40 Q4 (Docker vs bare metal) resolved (ADR-020: bare metal).
-# A real lockfile (uv.lock) is still Phase 0 work, not done by scaffolding.
-# REPIN BEFORE THE REAL CAMPAIGN if this tree is more than a few days old — both projects
-# publish continuously (ADR-032 found the torchtitan org had ALSO silently drifted in the
-# other direction from what was assumed: it's pytorch/torchtitan, not meta-pytorch/torchtitan
-# — meta-pytorch/torchtitan 404s. Re-verify the org, not just the SHA, every time).
+# STATUS: [CONFIRMED] — base install is laptop-sized (analysis/ + cli.py only): no torch, no
+# GPU stack, no git-source build. `measurement/` needs GPUs + AWS on the actual cluster and
+# pulls torch/torchtitan/torchft via the `measurement` extra below — this split is the fix
+# for a real pre-share finding (2026-08-19): `analysis/` and `cli.py` already imported no
+# torch anywhere, but every dependency lived in one undifferentiated base list, so drawing a
+# figure on a GPU-free laptop pulled ~2.5GB of CUDA wheels and built torchtitan from source
+# for no reason. `pydantic` was removed outright (confirmed unused anywhere in this repo —
+# schema validation goes through `schemas/registry.py`'s jsonschema path, not pydantic; it was
+# a leftover from early scaffolding, never wired in).
 dependencies = [
-    # measurement/ (needs GPUs + AWS on the actual cluster; importable everywhere for typing/tests)
+    "typer>=0.12",       # cli.py
+    "pandas>=2.2",       # analysis/
+    "pyarrow>=16.0",     # analysis/ (per-step Parquet)
+    "matplotlib>=3.9",   # analysis/figures/
+    "jsonschema>=4.22",  # schemas/ (shared, neutral — see schemas/registry.py's docstring)
+]
+
+[project.optional-dependencies]
+# measurement/ only (needs GPUs + AWS on the actual cluster). §40 Q2 (torchft/torchtitan
+# pins) validated FOR REAL on live GPU hardware 2026-08-14 (ADR-032): torchft's own DiLoCo
+# test suite passes (8/8) and torchtitan's debugmodel builds + runs a real forward/backward
+# pass on an L40S, exact param-count match to ADR-026. §40 Q4 (Docker vs bare metal) resolved
+# (ADR-020: bare metal). A real lockfile (uv.lock) is still Phase 0 work, not done by
+# scaffolding. REPIN BEFORE THE REAL CAMPAIGN if this tree is more than a few days old — both
+# projects publish continuously (ADR-032 found the torchtitan org had ALSO silently drifted
+# in the other direction from what was assumed: it's pytorch/torchtitan, not
+# meta-pytorch/torchtitan — meta-pytorch/torchtitan 404s. Re-verify the org, not just the
+# SHA, every time).
+measurement = [
     "torch>=2.4",
     # torchtitan: pure-Python wheel; PyPI (0.2.2) lags `main` substantially, so pinned to a
     # `main` SHA instead. 624c312b67 = last commit on pytorch/torchtitan main as of
@@ -26,16 +44,7 @@ dependencies = [
     # prebuilt manylinux_x86_64 nightly wheel instead. 2026.8.14 = latest observed build as of
     # ADR-032's validation date — its own DiLoCo/LocalSGD test suite passes 8/8 on real GPU.
     "torchft-nightly==2026.8.14",   # §40 Q2/ADR-032
-    "pydantic>=2.7",
-    "typer>=0.12",
-    # analysis/ (must remain GPU-free — see CLAUDE.md §11.2 forbidden edges)
-    "pandas>=2.2",
-    "pyarrow>=16.0",
-    "matplotlib>=3.9",
-    "jsonschema>=4.22",
 ]
-
-[project.optional-dependencies]
 dev = [
     "pytest>=8.2",
     "pytest-cov>=5.0",
@@ -92,4 +101,5 @@ markers = [
     "unit: pure logic, fast, every commit",
     "integration_cpu: CPU-only distributed tests (gloo), no GPU, no AWS",
     "e2e: requires a live 4-node cluster (make smoke) — not run in CI",
+    "requires_torch: needs the `measurement` extra installed (torch/torch.distributed) — 6 files, run via `make test-measurement`, not part of the laptop-only default test target",
 ]

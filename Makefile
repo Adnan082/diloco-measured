@@ -1,20 +1,25 @@
 # Makefile — diloco-measured
 #
-# STATUS: [PROPOSED] scaffold. Targets mirror CLAUDE.md §9.1 (Journey A) and §14.
-# Most targets are stubs that fail loudly until the corresponding module (§14 repo
-# structure) is implemented — per CLAUDE.md Architecture Principle #5 ("fail loud,
-# fail early"), a stub that pretends to succeed is worse than one that doesn't exist.
+# STATUS: [CONFIRMED] — project closed 2026-08-18 (CLAUDE.md ADR-040). Targets mirror
+# CLAUDE.md §9.1 (Journey A) and §14. `install`/`test`/`lint`/`typecheck`/`figures` are real
+# and laptop-safe (no GPU, no AWS, no torch). Cluster targets (`cluster-up`/`bootstrap`/
+# `network-characterize`/`smoke`/`grid`/`converge`/`cluster-down`) drive real scripts against
+# a real AWS account, real money — everything the project actually measured with them is
+# already committed to `results/raw/`; re-running them starts a NEW real cluster.
 
-.PHONY: help install test test-unit test-integration lint typecheck \
-        cluster-up bootstrap network-characterize smoke grid converge \
+.PHONY: help install install-measurement test test-unit test-integration test-measurement \
+        lint typecheck cluster-up bootstrap network-characterize smoke grid converge \
         cluster-down figures cost-report clean
 
 help:
 	@echo "diloco-measured — see CLAUDE.md for full spec"
 	@echo ""
-	@echo "Offline (safe, \$$0):"
-	@echo "  install              install package + dev deps"
-	@echo "  test                 unit + CPU integration tests"
+	@echo "Offline (safe, \$$0, no GPU/torch needed):"
+	@echo "  install              install the laptop-sized base package + dev deps (no torch)"
+	@echo "  install-measurement  add torch/torchtitan/torchft on top — needed for cluster work"
+	@echo "                       or the full test suite (make test-measurement)"
+	@echo "  test                 unit + CPU integration tests, excluding torch-dependent ones"
+	@echo "  test-measurement     the torch-dependent subset (needs install-measurement first)"
 	@echo "  lint / typecheck     ruff / mypy"
 	@echo "  figures              regenerate report figures from results/raw/ (FR-11, no GPU)"
 	@echo ""
@@ -35,13 +40,19 @@ help:
 install:
 	uv sync --extra dev || pip install -e ".[dev]"
 
+install-measurement:
+	uv sync --extra dev --extra measurement || pip install -e ".[dev,measurement]"
+
 test: test-unit test-integration
 
 test-unit:
-	pytest -m unit tests/unit -v
+	pytest -m "unit and not requires_torch" tests/unit -v
 
 test-integration:
-	pytest -m integration_cpu tests/integration_cpu -v
+	pytest -m "integration_cpu and not requires_torch" tests/integration_cpu -v
+
+test-measurement:
+	pytest -m requires_torch tests/unit tests/integration_cpu -v
 
 lint:
 	ruff check src tests
@@ -49,7 +60,7 @@ lint:
 typecheck:
 	mypy src
 
-figures:
+figures: install
 	diloco-measured figures
 
 clean:

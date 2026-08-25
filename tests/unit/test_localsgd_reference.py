@@ -8,11 +8,14 @@ divergence between them easy to spot.
 from __future__ import annotations
 
 import pytest
-import torch
-import torch.nn.functional as F
-from torch import nn
 
-from diloco_measured.measurement.localsgd import LocalSGDTrainer
+torch = pytest.importorskip("torch", reason="measurement extra not installed")
+import torch.nn.functional as F  # noqa: E402
+from torch import nn  # noqa: E402
+
+from diloco_measured.measurement.localsgd import LocalSGDTrainer  # noqa: E402
+
+pytestmark = pytest.mark.requires_torch
 
 OPT_CFG = {"name": "adamw", "lr": 0.05}
 

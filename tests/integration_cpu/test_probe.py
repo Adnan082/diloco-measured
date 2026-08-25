@@ -12,9 +12,11 @@ from __future__ import annotations
 import socket
 
 import pytest
+
+pytest.importorskip("torch", reason="measurement extra not installed")
 import torch.multiprocessing as mp
 
-pytestmark = pytest.mark.integration_cpu
+pytestmark = [pytest.mark.integration_cpu, pytest.mark.requires_torch]
 
 
 def _free_tcp_port() -> int:

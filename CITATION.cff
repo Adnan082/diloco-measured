@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: >-
+  If you use this repository, its measurement rig, or its committed result
+  corpus, please cite it as below.
+title: >-
+  diloco-measured: Measured, Not Simulated — A Bandwidth-Controlled
+  Evaluation of Semi-Synchronous LLM Training on Commodity Ethernet
+authors:
+  - name: Adnan Cheema
+date-released: 2026-08-18
+url: "https://github.com/Adnan082/diloco-measured"
+repository-code: "https://github.com/Adnan082/diloco-measured"
+license: Apache-2.0
+version: "0.1.0"
+type: software
+keywords:
+  - distributed-training
+  - diloco
+  - local-sgd
+  - pytorch
+  - llm
+  - benchmarking
