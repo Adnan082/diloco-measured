@@ -5,9 +5,7 @@
 **Measured, Not Simulated — A Bandwidth-Controlled Evaluation of Semi-Synchronous LLM Training
 on Commodity Ethernet.**
 
-> Every published bandwidth-vs-synchronization curve in this literature is simulated. This
-> repository contains measured ones, the code that produced them, and the discrepancy between
-> the two.
+> This repository measures bandwidth-versus-synchronization behavior on a specific four-node GPU setup and compares it with an explicit analytic model. See `PRIOR_ART.md` for the scope of the contribution.
 
 **Status: closed, 2026-08-18.** Three training algorithms (DDP, DiLoCo, LocalSGD) were run to
 completion on a 4-node GPU cluster over a bandwidth-shaped network: a measured
@@ -92,7 +90,7 @@ slower per-token than plain AdamW here is an open question this campaign doesn't
 
 **What this convergence campaign is not yet:** DiLoCo only — the DDP/LocalSGD *CU grid* now
 exists (ADR-039), but neither has run a convergence campaign yet, so this is not the full
-4-algorithm comparison, and FSDP2 has no driver at all. A 30.8M-parameter model, not the 1B
+4-algorithm comparison, and FSDP2 has an offline-tested driver but no hardware measurements. A 30.8M-parameter model, not the 1B
 `phase_a.yaml` specifies. One seed per convergence configuration. See
 `experiments/01_cu_grid/NOTES.md`, `experiments/02_convergence/NOTES.md`, and
 ADR-035/ADR-037/ADR-039's "Not resolved" sections for the complete, honest list.
@@ -193,12 +191,12 @@ figure in this README from the committed raw records in `results/raw/`, on a pla
 ```bash
 git clone https://github.com/Adnan082/diloco-measured.git
 cd diloco-measured
-make figures   # installs the laptop-sized base package, then regenerates every figure
+make figures   # installs locked analysis dependencies, then regenerates the supported figures
 ```
 
 `make figures` installs no GPU stack (`torch`/`torchtitan`/`torchft` live behind a separate
 `measurement` extra, only needed to re-run training on a real cluster — see `pyproject.toml`),
-opens no network connection, and uses no AWS credentials (FR-11). Every figure above is
+uses no AWS credentials (FR-11). Initial dependency installation may need network access; figure generation reads local committed records. Every figure above is
 produced from the committed `results/raw/` records — nothing is hand-drawn.
 
 ## Repository map
@@ -252,3 +250,8 @@ for anyone picking this back up.
 ## License
 
 Apache-2.0. See [`LICENSE`](LICENSE).
+
+
+## Supported commands and topology
+
+See [REPRODUCTION.md](docs/REPRODUCTION.md) for the supported analysis commands, real campaign entry points, and topology. The unified hardware CLI remains unsupported and fails before infrastructure changes.

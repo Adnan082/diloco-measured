@@ -8,11 +8,9 @@ about argument validity, it belongs in the module you're calling, not here.
 Full CLI surface and contract: CLAUDE.md §17.1.
 
 STATUS: `analyze` and `figures` are real — they dispatch to `analysis/`, which is complete
-and GPU-free. Every other command still raises `NotImplementedError`: they need
-infrastructure this repo doesn't have yet (a cluster-inventory mechanism to supply real
-`Node` objects, a validated torchft/torchtitan pin — §40 Q2, ADR-009 — and a dataset
-tokenization pipeline). That's intentional (Architecture Principle #5: fail loud, fail
-early) rather than a silent no-op or a command that guesses.
+and GPU-free. The unified measurement commands exit with an explicit unsupported
+message and code 2. Existing campaigns use the experiment scripts documented in
+docs/REPRODUCTION.md; these wrappers do not provision or measure infrastructure.
 """
 
 from __future__ import annotations
@@ -39,7 +37,12 @@ def network_characterize(
     Requires: cluster up, sudo on nodes. Writes: results/network/<profile_id>.json.
     """
     # from diloco_measured.measurement import netshape, probe
-    raise NotImplementedError("Phase 0/1 — see methods/network_protocol.md")
+    typer.echo(
+        "Unsupported unified command: use the documented experiment scripts in "
+        "docs/REPRODUCTION.md. No infrastructure was changed.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command("run")
@@ -53,7 +56,12 @@ def run(
     Idempotency: run_id includes repeat_index; re-running creates a NEW record, never
     overwrites.
     """
-    raise NotImplementedError("Phase 0/1 — see CLAUDE.md §10.1 run lifecycle")
+    typer.echo(
+        "Unsupported unified command: use the documented experiment scripts in "
+        "docs/REPRODUCTION.md. No infrastructure was changed.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command("grid")
@@ -62,7 +70,12 @@ def grid(
     resume: bool = typer.Option(False, "--resume"),
 ) -> None:
     """Execute a campaign of runs. A failed point is logged; the grid CONTINUES (§19.4)."""
-    raise NotImplementedError("Phase 3")
+    typer.echo(
+        "Unsupported unified command: use the documented experiment scripts in "
+        "docs/REPRODUCTION.md. No infrastructure was changed.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command("converge")
@@ -70,7 +83,12 @@ def converge(
     spec: str = typer.Option(..., "--spec"),
 ) -> None:
     """FR-06. Fixed-token-budget run with periodic eval, computing time-to-target-loss."""
-    raise NotImplementedError("Phase 4")
+    typer.echo(
+        "Unsupported unified command: use the documented experiment scripts in "
+        "docs/REPRODUCTION.md. No infrastructure was changed.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command("plan")
@@ -84,7 +102,12 @@ def plan(
 
     Extrapolation outside the calibration domain is NEVER silent (US-05).
     """
-    raise NotImplementedError("Phase 5 — see methods/statistics.md, PLAYBOOK.md")
+    typer.echo(
+        "Unsupported unified command: use the documented experiment scripts in "
+        "docs/REPRODUCTION.md. No infrastructure was changed.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command("analyze")
