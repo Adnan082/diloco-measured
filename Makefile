@@ -2,10 +2,9 @@
 #
 # STATUS: [CONFIRMED] — project closed 2026-08-18 (CLAUDE.md ADR-040). Targets mirror
 # CLAUDE.md §9.1 (Journey A) and §14. `install`/`test`/`lint`/`typecheck`/`figures` are real
-# and laptop-safe (no GPU, no AWS, no torch). Cluster targets (`cluster-up`/`bootstrap`/
-# `network-characterize`/`smoke`/`grid`/`converge`/`cluster-down`) drive real scripts against
-# a real AWS account, real money — everything the project actually measured with them is
-# already committed to `results/raw/`; re-running them starts a NEW real cluster.
+# and laptop-safe (no GPU or AWS). Infrastructure scripts can affect real AWS
+# resources. Unified network-characterize/smoke/grid/converge wrappers are not
+# implemented; use the documented campaign scripts in docs/REPRODUCTION.md.
 
 .PHONY: help install install-measurement test test-unit test-integration test-measurement \
         lint typecheck cluster-up bootstrap network-characterize smoke grid converge \
@@ -28,40 +27,40 @@ help:
 	@echo "                       Real launch: LAUNCH=1 DILOCO_OPERATOR_IP=<your-ip> make cluster-up"
 	@echo "                       (~\$$9.33/hr once actually launched, CLAUDE.md §5.2)"
 	@echo "  bootstrap ROLE=gpu   install deps, lock clocks, sync dataset (ROLE=gpu|control)"
-	@echo "  network-characterize FR-01: iperf3 + NCCL BW curve + burst-decay probe"
-	@echo "  smoke                E2E gate: 4 nodes, tiny model, 20 steps"
-	@echo "  grid PHASE=A         run a campaign (FR-02..FR-05)"
-	@echo "  converge PHASE=B     fixed-token-budget convergence runs (FR-06)"
+	@echo "  network-characterize unsupported wrapper; see docs/REPRODUCTION.md"
+	@echo "  smoke                unsupported wrapper; see docs/REPRODUCTION.md"
+	@echo "  grid PHASE=A         unsupported wrapper; see docs/REPRODUCTION.md"
+	@echo "  converge PHASE=B     unsupported wrapper; see docs/REPRODUCTION.md"
 	@echo "  cluster-down         DRY-RUN by default. Real teardown: make cluster-down TEARDOWN=1"
 	@echo "  cost-report          cumulative cluster-hours and spend for what's running right now"
 
 # ---- Offline mode (§31.1) --------------------------------------------------
 
 install:
-	uv sync --extra dev || pip install -e ".[dev]"
+	uv sync --frozen --extra dev
 
 install-measurement:
-	uv sync --extra dev --extra measurement || pip install -e ".[dev,measurement]"
+	uv sync --frozen --extra dev --extra measurement
 
 test: test-unit test-integration
 
 test-unit:
-	pytest -m "unit and not requires_torch" tests/unit -v
+	uv run pytest -m "unit and not requires_torch" tests/unit -v
 
 test-integration:
-	pytest -m "integration_cpu and not requires_torch" tests/integration_cpu -v
+	uv run pytest -m "integration_cpu and not requires_torch" tests/integration_cpu -v
 
 test-measurement:
-	pytest -m requires_torch tests/unit tests/integration_cpu -v
+	uv run pytest -m requires_torch tests/unit tests/integration_cpu -v
 
 lint:
-	ruff check src tests
+	uv run ruff check src tests
 
 typecheck:
-	mypy src
+	uv run mypy src
 
 figures: install
-	diloco-measured figures
+	uv run diloco-measured figures
 
 clean:
 	rm -rf results/figures/*
@@ -85,16 +84,16 @@ bootstrap:
 	bash infra/setup_node.sh $(or $(ROLE),gpu)
 
 network-characterize:
-	diloco-measured network characterize
+	uv run diloco-measured network characterize
 
 smoke:
-	pytest -m e2e tests/e2e -v
+	uv run pytest -m e2e tests/e2e -v
 
 grid:
-	diloco-measured grid --config configs/grids/phase_$(or $(PHASE),A).yaml --resume
+	uv run diloco-measured grid --config configs/grids/phase_$(or $(PHASE),A).yaml --resume
 
 converge:
-	diloco-measured converge --spec configs/grids/phase_$(or $(PHASE),B).yaml
+	uv run diloco-measured converge --spec configs/grids/phase_$(or $(PHASE),B).yaml
 
 cluster-down:
 ifeq ($(TEARDOWN),1)
@@ -107,3 +106,4 @@ endif
 
 cost-report:
 	bash infra/cost_report.sh
+

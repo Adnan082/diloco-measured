@@ -3088,3 +3088,8 @@ Performed after drafting, per the authoring brief.
 ---
 
 *End of `CLAUDE.md` v0.1. Update per §44 and §45.*
+
+
+## ADR-041 — 2026-10-08: clarify supported interfaces
+
+Context: advertised unified commands remain unimplemented; successful measurements came from campaign-specific scripts. Decision: preserve those scripts and measurements, reject unsupported CLI calls explicitly, use frozen uv environments for Make targets, and document the supported paths. Classification: packaging/interface maintenance; no measurement or analysis mathematics changed, harness_version unchanged. Consolidated execution, recovery and wire accounting remain open and require a new hardware-validated extension.

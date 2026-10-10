@@ -1,17 +1,7 @@
 name: CI
 
-# Runs on every push/PR: lint, type-check, and the analysis-only test subset (CLAUDE.md §30.8
-# "Never touches AWS, never requires a GPU"). This is deliberately NOT the full test suite —
-# 6 test files (marked `requires_torch`, see pyproject.toml) exercise `measurement/`'s
-# reference DiLoCo/LocalSGD implementations and need `torch`/`torch.distributed`, which this
-# workflow does not install (the whole point of the `measurement` extra split is that CI, like
-# a reviewer's laptop, should never need the GPU stack just to check the analysis path). Those
-# 6 files use `pytest.importorskip("torch", ...)` so they SKIP cleanly here rather than
-# breaking collection for everything else.
-#
-# Uses `uv sync --frozen` against the committed `uv.lock` rather than a loose `pip install`,
-# so this is the same byte-reproducible install a real reviewer would get, not a separately
-# resolved one that could quietly drift from what's committed.
+# Analysis remains a locked, laptop-sized install. A separate CPU-only job
+# exercises reference training and Gloo collectives without AWS or GPUs.
 
 on:
   push:
@@ -49,3 +39,23 @@ jobs:
 
       - name: Regenerate figures from committed results/raw/ (FR-11 — no GPU, no network, no credentials)
         run: uv run diloco-measured figures
+
+
+  cpu-distributed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install locked base and dev dependencies
+        run: uv sync --frozen --extra dev
+      - name: Install CPU Torch matching uv.lock
+        run: uv pip install --python .venv/bin/python torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
+      - name: Reference algorithm and two-rank Gloo tests
+        run: .venv/bin/python -m pytest -m requires_torch tests/unit tests/integration_cpu -v
